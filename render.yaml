@@ -5,3 +5,23 @@ services:
     # Rafraîchit les données à chaque déploiement ; si ESPN refuse, on garde le data.js du dépôt.
     buildCommand: node fetch-data.mjs || echo "Données non rafraîchies, data.js du dépôt conservé"
     staticPublishPath: .
+
+  # API des paris partagés (les paris sont gardés dans bets.json sur la branche paris-data).
+  - type: web
+    name: paris-stats-api
+    runtime: node
+    plan: free
+    buildCommand: echo "Aucune dépendance"
+    startCommand: node server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: BETS_CODE
+        sync: false
+      - key: GITHUB_REPO
+        value: cyricmarceau/paris-stats
+      - key: DATA_BRANCH
+        value: paris-data
+      - key: ALLOW_ORIGIN
+        value: https://paris-stats.onrender.com
