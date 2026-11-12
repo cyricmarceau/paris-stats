@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paris stats NBA</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0 auto; max-width: 1100px; padding: 16px;
+    background: var(--background, #0f1218); /* page-bg */
+    color: var(--foreground, #e7eaf0);
+    font-family: var(--font-sans, system-ui, "Segoe UI", sans-serif);
+    font-size: 14px; line-height: 1.45;
+  }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; }
+  .sub { color: var(--muted-foreground, #97a0b3); font-size: 13px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; white-space: nowrap; }
+  th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--border, #262c3a); }
+  th { font-weight: 600; font-size: 12px; color: var(--muted-foreground, #97a0b3); cursor: pointer; user-select: none; }
+  th.sorted { color: var(--foreground, #e7eaf0); }
+  th:first-child, td:first-child { text-align: left; }
+  td.team { display: flex; align-items: center; gap: 8px; }
+  td.team img { width: 20px; height: 20px; }
+  .pos { color: var(--success, #4ade80); }
+  .neg { color: var(--destructive, #f87171); }
+
+  .games { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .game {
+    background: var(--card, #171b25); border: 1px solid var(--border, #262c3a);
+    border-radius: var(--radius, 10px); padding: 14px 16px;
+  }
+  .game .when { color: var(--muted-foreground, #97a0b3); font-size: 12px; margin-bottom: 8px; }
+  .side { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; }
+  .side + .side { border-top: 1px solid var(--border, #262c3a); }
+  .side .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .side .name img { width: 22px; height: 22px; }
+  .side .name small { font-weight: 400; color: var(--muted-foreground, #97a0b3); }
+  .side .proj { font-size: 20px; font-weight: 700; }
+  .side .line { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; color: var(--muted-foreground, #97a0b3); }
+  .side .line b { color: var(--foreground, #e7eaf0); font-weight: 600; }
+  input.odds {
+    width: 68px; padding: 4px 6px; font: inherit; text-align: right;
+    color: var(--foreground, #e7eaf0); background: var(--background, #0f1218);
+    border: 1px solid var(--border, #262c3a); border-radius: 6px;
+  }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.yes { background: var(--success, #4ade80); color: #06240f; }
+  .badge.thin { background: var(--warning, #facc15); color: #2a2000; }
+  .badge.no { border: 1px solid var(--border, #262c3a); }
+  .basis { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .basis button {
+    font: inherit; padding: 4px 12px; cursor: pointer; border-radius: 999px;
+    color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #262c3a);
+  }
+  .basis button.on { background: var(--foreground, #e7eaf0); color: var(--background, #0f1218); }
+  .src { font-size: 12px; }
+  button.reset {
+    font: inherit; font-size: 12px; padding: 1px 7px; cursor: pointer;
+    color: var(--foreground, #e7eaf0); background: none;
+    border: 1px solid var(--border, #262c3a); border-radius: 6px;
+  }
+  .stale {
+    margin-top: 14px; padding: 10px 14px; border-radius: var(--radius, 10px);
+    border: 1px solid var(--warning, #facc15); color: var(--warning, #facc15);
+  }
+  .foot { margin-top: 8px; font-size: 12px; color: var(--muted-foreground, #97a0b3); }
+  details { margin-top: 24px; color: var(--muted-foreground, #97a0b3); font-size: 13px; }
+  details p { max-width: 70ch; }
+  .empty { padding: 24px; border: 1px dashed var(--border, #262c3a); border-radius: var(--radius, 10px); }
+  code { font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
+</style>
+</head>
+<body>
+<h1>Paris stats NBA</h1>
+<div class="sub" id="meta"></div>
+
+<div id="app"></div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Réglages du modèle ----
+  var HOME_EDGE = 2.5;     // avantage du terrain, en points d'écart
+  var MARGIN_SD = 12;      // écart-type de l'écart final d'un match NBA
+  var SHRINK_GAMES = 3;    // poids de la moyenne de la ligue, en matchs
+  var EV_GOOD = 0.05;      // valeur espérée à partir de laquelle on dit « ça vaut le coup »
+
+  var data = window.NBA_DATA;
+  var app = document.getElementById("app");
+  var meta = document.getElementById("meta");
+
+  if (!data || !data.teams || !data.games) {
+    app.innerHTML = '<div class="empty">Aucune donnée. Lance <code>node fetch-data.mjs</code> dans ce dossier, puis recharge la page.</div>';
+    return;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function f1(x) { return x.toFixed(1); }
+  function pct(x) { return (x * 100).toFixed(0) + " %"; }
+  function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : 0; }
+
+  // ---- Statistiques par équipe ----
+  var teams = {};
+  data.teams.forEach(function (t) { teams[t.id] = { info: t, log: [] }; });
+
+  data.games.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); }).forEach(function (g) {
+    var h = teams[g.homeId], a = teams[g.awayId];
+    if (!h || !a) return;
+    h.log.push({ home: true, pf: g.homeScore, pa: g.awayScore, win: g.homeScore > g.awayScore });
+    a.log.push({ home: false, pf: g.awayScore, pa: g.homeScore, win: g.awayScore > g.homeScore });
+  });
+
+  function split(log) {
+    var w = log.filter(function (x) { return x.win; }).length;
+    return {
+      n: log.length, w: w, l: log.length - w,
+      pf: avg(log.map(function (x) { return x.pf; })),
+      pa: avg(log.map(function (x) { return x.pa; }))
+    };
+  }
+
+  var allPts = [];
+  Object.keys(teams).forEach(function (id) {
+    var t = teams[id];
+    t.all = split(t.log);
+    t.l5 = split(t.log.slice(-5));
+    t.l10 = split(t.log.slice(-10));
+    t.homeRec = split(t.log.filter(function (x) { return x.home; }));
+    t.awayRec = split(t.log.filter(function (x) { return !x.home; }));
+    t.log.forEach(function (x) { allPts.push(x.pf); });
+  });
+  var leagueAvg = avg(allPts) || 114;
+
+  // ---- Projection ----
+  // Attaque et défense : moyenne sur la période choisie (5 derniers par défaut),
+  // ramenée vers la moyenne de la ligue parce que l'échantillon est petit.
+  var BASES = { l5: "5 derniers matchs", l10: "10 derniers matchs", all: "Saison" };
+  var basis = "l5";
+  try { basis = localStorage.getItem("paris-stats-base") || "l5"; } catch (e) {}
+  if (!BASES[basis]) basis = "l5";
+
+  function rating(t, key) {
+    var s = t[basis];
+    return (s[key] * s.n + leagueAvg * SHRINK_GAMES) / (s.n + SHRINK_GAMES);
+  }
+
+  // Fonction de répartition de la loi normale centrée réduite.
+  function normCdf(z) {
+    var t = 1 / (1 + 0.2316419 * Math.abs(z));
+    var d = 0.3989423 * Math.exp(-z * z / 2);
+    var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return z > 0 ? 1 - p : p;
+  }
+
+  function project(h, a) {
+    var homePts = rating(h, "pf") * rating(a, "pa") / leagueAvg + HOME_EDGE / 2;
+    var awayPts = rating(a, "pf") * rating(h, "pa") / leagueAvg - HOME_EDGE / 2;
+    var pHome = normCdf((homePts - awayPts) / MARGIN_SD);
+    return { homePts: homePts, awayPts: awayPts, pHome: pHome, pAway: 1 - pHome };
+  }
+
+  function americanToDecimal(a) {
+    if (typeof a !== "number" || !isFinite(a) || a === 0) return null;
+    return a > 0 ? 1 + a / 100 : 1 + 100 / Math.abs(a);
+  }
+
+  // ---- Cotes saisies à la main (gardées dans le navigateur) ----
+  var STORE = "paris-stats-cotes";
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE) || "{}") || {}; } catch (e) { saved = {}; }
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch (e) {} }
+
+  // Oublie les cotes saisies pour des matchs qui ne sont plus dans les données.
+  (function () {
+    var ids = {};
+    (data.upcoming || []).forEach(function (g) { ids[g.id] = true; });
+    Object.keys(saved).forEach(function (k) {
+      var s = saved[k];
+      if (!ids[k.split(":")[0]] || !s || typeof s !== "object") delete saved[k];
+    });
+    save();
+  })();
+
+  var dayFmt = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+  // D'où vient la cote affichée : saisie à la main (avec sa date) ou importée.
+  function sourceHtml(id, typed, hasBook, provider) {
+    var back = hasBook ? "Remettre " + esc(provider) : "Effacer";
+    var btn = ' <button class="reset" type="button" data-reset="' + esc(id) + '">' + back + "</button>";
+    if (saved[id]) return "saisie le " + esc(dayFmt.format(new Date(saved[id].t))) + btn;
+    if (typed === "") return hasBook ? btn : "";
+    return hasBook ? esc(provider) : "";
+  }
+
+  function verdict(p, dec) {
+    if (!isFinite(dec) || dec <= 1) return "";
+    var ev = p * dec - 1;
+    var cls = ev >= EV_GOOD ? "yes" : ev > 0 ? "thin" : "no";
+    var txt = ev >= EV_GOOD ? "Ça vaut le coup" : ev > 0 ? "Mince" : "Non";
+    return '<span class="num ' + (ev > 0 ? "pos" : "neg") + '">' + (ev > 0 ? "+" : "") + (ev * 100).toFixed(1) +
+      ' %</span> <span class="badge ' + cls + '">' + txt + "</span>";
+  }
+
+  function sideHtml(g, key, t, pts, p, bookDec, isHome) {
+    var id = g.id + ":" + key;
+    var provider = (g.odds && g.odds.provider) || "le book";
+    var val = saved[id] ? saved[id].v : (bookDec ? bookDec.toFixed(2) : "");
+    // Le calcul garde la cote importée exacte ; seul l'affichage est arrondi.
+    var dec = saved[id] ? parseFloat(saved[id].v) : bookDec;
+    var logo = t.info.logo ? '<img src="' + esc(t.info.logo) + '" alt="">' : "";
+    return '<div class="side">' +
+      '<div class="name">' + logo + esc(t.info.name) + " <small>" + (isHome ? "dom." : "étr.") + " · " + t.all.w + "-" + t.all.l + "</small></div>" +
+      '<div class="proj num">' + f1(pts) + "</div>" +
+      '<div class="line">' +
+        "<span>Victoire <b class=\"num\">" + pct(p) + "</b></span>" +
+        "<span>Notre cote <b class=\"num\">" + (1 / p).toFixed(2) + "</b></span>" +
+        '<label>Cote du book <input class="odds num" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="1.90" ' +
+          'data-id="' + esc(id) + '" data-p="' + p + '" data-book="' + (bookDec || "") + '" data-prov="' + esc(provider) +
+          '" value="' + esc(val) + '"></label>' +
+        '<span class="src" data-src="' + esc(id) + '">' + sourceHtml(id, val, !!bookDec, provider) + "</span>" +
+        '<span class="ev" data-for="' + esc(id) + '">' + verdict(p, dec) + "</span>" +
+      "</div></div>";
+  }
+
+  function upcomingHtml() {
+    var now = Date.now();
+    var list = (data.upcoming || []).filter(function (g) {
+      return teams[g.homeId] && teams[g.awayId] && new Date(g.date).getTime() > now;
+    });
+    if (!list.length) return '<div class="empty">Aucun match à venir dans les données. Relance <code>node fetch-data.mjs</code>.</div>';
+    var fmt = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+    return '<div class="games">' + list.map(function (g) {
+      var h = teams[g.homeId], a = teams[g.awayId];
+      var pr = project(h, a);
+      var o = g.odds || {};
+      var margin = pr.homePts - pr.awayPts;
+      var fav = margin >= 0 ? h : a;
+      var foot = "Écart projeté : " + esc(fav.info.abbr) + " par " + f1(Math.abs(margin)) + " · Total projeté : " + f1(pr.homePts + pr.awayPts);
+      if (g.odds) {
+        var bits = [];
+        if (typeof o.spread === "number") bits.push("écart " + esc(h.info.abbr) + " " + (o.spread > 0 ? "+" : "") + o.spread);
+        if (typeof o.total === "number") bits.push("total " + o.total);
+        if (bits.length) foot += "<br>Ligne " + esc(o.provider || "du book") + " : " + bits.join(" · ");
+      }
+      var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
+      return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
+        sideHtml(g, "away", a, pr.awayPts, pr.pAway, americanToDecimal(o.awayMoneyline), false) +
+        sideHtml(g, "home", h, pr.homePts, pr.pHome, americanToDecimal(o.homeMoneyline), true) +
+        '<div class="foot num">' + foot + few + "</div></div>";
+    }).join("") + "</div>";
+  }
+
+  // ---- Tableau des équipes ----
+  var cols = [
+    { label: "Équipe", val: function (t) { return t.info.name; }, text: true },
+    { label: "MJ", val: function (t) { return t.all.n; } },
+    { label: "V", val: function (t) { return t.all.w; } },
+    { label: "D", val: function (t) { return t.all.l; } },
+    { label: "% V", val: function (t) { return t.all.n ? t.all.w / t.all.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
+    { label: "Pts pour", val: function (t) { return t.all.pf; }, show: f1 },
+    { label: "Pts contre", val: function (t) { return t.all.pa; }, show: f1 },
+    { label: "Diff.", val: function (t) { return t.all.pf - t.all.pa; }, show: function (v) { return (v > 0 ? "+" : "") + f1(v); }, signed: true },
+    { label: "5 dern.", val: function (t) { return t.l5.w; }, rec: "l5" },
+    { label: "Moy. 5", val: function (t) { return t.l5.pf; }, show: f1 },
+    { label: "10 dern.", val: function (t) { return t.l10.w; }, rec: "l10" },
+    { label: "Moy. 10", val: function (t) { return t.l10.pf; }, show: f1 },
+    { label: "Domicile", val: function (t) { return t.homeRec.n ? t.homeRec.w / t.homeRec.n : 0; }, rec: "homeRec" },
+    { label: "Étranger", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, rec: "awayRec" }
+  ];
+  var sortCol = 4, sortDir = -1;
+
+  function tableHtml() {
+    var rows = Object.keys(teams).map(function (id) { return teams[id]; });
+    var c = cols[sortCol];
+    rows.sort(function (x, y) {
+      var a = c.val(x), b = c.val(y);
+      var d = c.text ? String(a).localeCompare(String(b), "fr") : a - b;
+      return d * sortDir || (y.all.pf - y.all.pa) - (x.all.pf - x.all.pa);
+    });
+    var head = cols.map(function (col, i) {
+      return '<th data-col="' + i + '"' + (i === sortCol ? ' class="sorted"' : "") + ">" + col.label +
+        (i === sortCol ? (sortDir < 0 ? " ▾" : " ▴") : "") + "</th>";
+    }).join("");
+    var body = rows.map(function (t) {
+      return "<tr>" + cols.map(function (col, i) {
+        var v = col.val(t);
+        if (i === 0) {
+          var logo = t.info.logo ? '<img src="' + esc(t.info.logo) + '" alt="">' : "";
+          return '<td class="team">' + logo + esc(v) + "</td>";
+        }
+        var txt = col.rec ? t[col.rec].w + "-" + t[col.rec].l : col.show ? col.show(v) : v;
+        var cls = "num" + (col.signed ? (v > 0 ? " pos" : v < 0 ? " neg" : "") : "");
+        return '<td class="' + cls + '">' + txt + "</td>";
+      }).join("") + "</tr>";
+    }).join("");
+    return '<div class="scroll"><table><thead><tr>' + head + "</tr></thead><tbody>" + body + "</tbody></table></div>";
+  }
+
+  // ---- Affichage ----
+  var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" }) : "?";
+  meta.textContent = "Saison " + (data.season || "") + " · " + data.games.length + " matchs joués · données du " + when +
+    (data.source ? " (" + data.source + ")" : "");
+
+  var ageHours = data.generatedAt ? (Date.now() - new Date(data.generatedAt).getTime()) / 36e5 : 0;
+  var stale = ageHours > 12
+    ? '<div class="stale">Données vieilles de ' + Math.round(ageHours) + " h : les cotes et les fiches ont pu changer. Relance <code>node fetch-data.mjs</code>.</div>"
+    : "";
+
+  function basisHtml() {
+    return '<div class="basis">Projections basées sur : ' + Object.keys(BASES).map(function (k) {
+      return '<button type="button" data-basis="' + k + '"' + (k === basis ? ' class="on"' : "") + ">" + BASES[k] + "</button>";
+    }).join("") + "</div>";
+  }
+
+  app.innerHTML = stale +
+    "<h2>Matchs à venir</h2>" +
+    '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.</div>' +
+    '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
+    "<h2>Équipes</h2>" +
+    '<div id="table">' + tableHtml() + "</div>" +
+    "<details><summary>Comment les projections sont calculées</summary>" +
+    "<p>Pour chaque équipe, l'attaque (points pour) et la défense (points contre) sont les moyennes sur la période choisie : " +
+    "5 derniers matchs, 10 derniers ou toute la saison. Ces moyennes sont un peu ramenées vers celle de la ligue (" +
+    f1(leagueAvg) + " points, avec un poids de " + SHRINK_GAMES + " matchs), parce que quelques matchs ne suffisent pas à juger une équipe.</p>" +
+    "<p>Points projetés = attaque de l'équipe × défense de l'adversaire ÷ moyenne de la ligue, avec " + HOME_EDGE +
+    " points d'écart en faveur de l'équipe à domicile. La probabilité de victoire vient de l'écart projeté, en supposant un écart-type de " +
+    MARGIN_SD + " points. Notre cote = 1 ÷ probabilité.</p>" +
+    "<p>Valeur espérée = probabilité × cote du book − 1. À partir de +" + Math.round(EV_GOOD * 100) +
+    " %, la page dit « ça vaut le coup ». Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
+    "</details>";
+
+  app.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains("odds")) return;
+    var id = el.getAttribute("data-id");
+    if (el.value === "") delete saved[id]; else saved[id] = { v: el.value, t: Date.now() };
+    save();
+    refresh(el);
+  });
+
+  function refresh(el) {
+    var id = el.getAttribute("data-id");
+    var book = parseFloat(el.getAttribute("data-book"));
+    var dec = saved[id] ? parseFloat(saved[id].v) : (el.value === "" ? NaN : book);
+    app.querySelector('.ev[data-for="' + id + '"]').innerHTML = verdict(parseFloat(el.getAttribute("data-p")), dec);
+    app.querySelector('.src[data-src="' + id + '"]').innerHTML = sourceHtml(id, el.value, isFinite(book), el.getAttribute("data-prov"));
+  }
+
+  app.addEventListener("click", function (e) {
+    var reset = e.target.closest ? e.target.closest("button[data-reset]") : null;
+    if (reset) {
+      var rid = reset.getAttribute("data-reset");
+      var input = app.querySelector('input.odds[data-id="' + rid + '"]');
+      var book = parseFloat(input.getAttribute("data-book"));
+      delete saved[rid];
+      save();
+      input.value = isFinite(book) ? book.toFixed(2) : "";
+      refresh(input);
+      return;
+    }
+    var pick = e.target.closest ? e.target.closest("button[data-basis]") : null;
+    if (pick) {
+      basis = pick.getAttribute("data-basis");
+      try { localStorage.setItem("paris-stats-base", basis); } catch (err) {}
+      document.getElementById("upcoming").innerHTML = basisHtml() + upcomingHtml();
+      return;
+    }
+    var th = e.target.closest ? e.target.closest("th[data-col]") : null;
+    if (!th) return;
+    var i = +th.getAttribute("data-col");
+    if (i === sortCol) sortDir = -sortDir; else { sortCol = i; sortDir = cols[i].text ? 1 : -1; }
+    document.getElementById("table").innerHTML = tableHtml();
+  });
+})();
+</script>
+</body>
+</html>
