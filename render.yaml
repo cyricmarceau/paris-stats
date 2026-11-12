@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: paris-stats
+    runtime: static
+    # Rafraîchit les données à chaque déploiement ; si ESPN refuse, on garde le data.js du dépôt.
+    buildCommand: node fetch-data.mjs || echo "Données non rafraîchies, data.js du dépôt conservé"
+    staticPublishPath: .
