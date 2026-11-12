@@ -622,13 +622,13 @@
     "Écart : probabilité de couvrir = écart projeté contre la ligne, écart-type " + MARGIN_SD + " pts. Total : écart-type " + TOTAL_SD + " pts. Les deux supposent une cote de -110 (1.91). " +
     "Mise = ¼ de Kelly, plafonnée à " + Math.round(MAX_STAKE * 100) + " % de la bankroll. Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
     "</details></section>" +
-    '<div class="modal" id="betModal" hidden><form id="betForm" autocomplete="off">' +
+    '<div class="modal" id="betModal" hidden><form id="betForm" autocomplete="off" novalidate>' +
       '<div class="mhead"><h3 id="bmTitle"></h3><button type="button" class="x" id="bmX" aria-label="Fermer">✕</button></div>' +
       '<div class="seg" id="bmSeg"></div><input type="hidden" id="bmPick">' +
-      '<div class="row"><label id="bmLineWrap">Ligne <input id="bmLine" type="number" step="0.5" inputmode="decimal"></label>' +
-      '<label>Cote du book (décimale) <input id="bmOdds" type="number" step="0.01" min="1.01" inputmode="decimal" required></label></div>' +
+      '<div class="row"><label id="bmLineWrap">Ligne <input id="bmLine" type="number" step="any" inputmode="decimal"></label>' +
+      '<label>Cote du book (décimale) <input id="bmOdds" type="number" step="any" min="1.01" inputmode="decimal" required></label></div>' +
       '<div class="msum" id="bmSum"></div>' +
-      '<label>Mise ($) <input id="bmStake" type="number" step="1" min="0.01" inputmode="decimal" required></label>' +
+      '<label>Mise ($) <input id="bmStake" type="number" step="any" min="0.01" inputmode="decimal" required></label>' +
       '<div class="chips" id="bmStakeChips"></div>' +
       '<div class="lbl">Qui parie ?</div><div class="chips" id="bmWhoChips"></div>' +
       '<input id="bmWho" placeholder="Autre nom…" required>' +
