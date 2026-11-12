@@ -1,5 +1,5 @@
 window.NBA_DATA = {
-  "generatedAt": "2026-11-12T02:38:57.980Z",
+  "generatedAt": "2026-11-12T03:05:35.541Z",
   "season": "2026-27",
   "source": "ESPN",
   "teams": [
@@ -1472,22 +1472,25 @@ window.NBA_DATA = {
       "awayId": "27",
       "homeScore": 114,
       "awayScore": 101
+    },
+    {
+      "id": "401909967",
+      "date": "2026-11-12T00:00:00.000Z",
+      "homeId": "18",
+      "awayId": "5",
+      "homeScore": 107,
+      "awayScore": 115
+    },
+    {
+      "id": "401909968",
+      "date": "2026-11-12T00:00:00.000Z",
+      "homeId": "28",
+      "awayId": "2",
+      "homeScore": 93,
+      "awayScore": 98
     }
   ],
   "upcoming": [
-    {
-      "id": "401909975",
-      "date": "2026-11-12T03:00:00.000Z",
-      "homeId": "22",
-      "awayId": "25",
-      "odds": {
-        "provider": "DraftKings",
-        "homeMoneyline": -147,
-        "awayMoneyline": 124,
-        "spread": -2.5,
-        "total": 224.5
-      }
-    },
     {
       "id": "401909976",
       "date": "2026-11-13T00:00:00.000Z",
@@ -1501,7 +1504,7 @@ window.NBA_DATA = {
       "homeId": "27",
       "awayId": "8",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": 293,
         "awayMoneyline": -369,
         "spread": 9.5,
@@ -1514,7 +1517,7 @@ window.NBA_DATA = {
       "homeId": "16",
       "awayId": "6",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -196,
         "awayMoneyline": 164,
         "spread": -5.5,
@@ -1527,7 +1530,7 @@ window.NBA_DATA = {
       "homeId": "21",
       "awayId": "30",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -250,
         "awayMoneyline": 206,
         "spread": -7.5,
@@ -1854,6 +1857,20 @@ window.NBA_DATA = {
       "date": "2026-11-19T02:30:00.000Z",
       "homeId": "6",
       "awayId": "9",
+      "odds": null
+    },
+    {
+      "id": "401910017",
+      "date": "2026-11-19T03:00:00.000Z",
+      "homeId": "13",
+      "awayId": "26",
+      "odds": null
+    },
+    {
+      "id": "401910018",
+      "date": "2026-11-19T03:00:00.000Z",
+      "homeId": "23",
+      "awayId": "21",
       "odds": null
     }
   ]
