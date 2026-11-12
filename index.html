@@ -86,6 +86,16 @@
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
   .modal[hidden] { display: none; }
   .tools[hidden] { display: none; }
+  .info { display: block; margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--border, #262c3a); margin-left: 4px; }
+  .tag.out { border-color: var(--destructive, #f87171); color: var(--destructive, #f87171); }
+  .tag.dtd { border-color: var(--warning, #facc15); color: var(--warning, #facc15); }
+  .plsel { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .plsel select { font: inherit; padding: 6px 8px; color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; max-width: 100%; }
+  table.pl td, table.pl th { padding: 6px 8px; }
+  table.pl input { width: 58px; padding: 3px 5px; font: inherit; text-align: right; color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; }
+  table.pl tr.out td { opacity: .45; }
+  .pname small { color: var(--muted-foreground, #97a0b3); }
   .modal form { background: var(--card, #171b25); border: 1px solid var(--border, #262c3a); border-radius: var(--radius, 10px); padding: 18px; width: 100%; max-width: 380px; display: grid; gap: 10px; }
   .modal h3 { margin: 0; font-size: 16px; }
   .modal label { display: grid; gap: 4px; font-size: 12px; color: var(--muted-foreground, #97a0b3); }
@@ -114,6 +124,8 @@
 <div id="app"></div>
 
 <script src="data.js"></script>
+<script src="players.js"></script>
+<script src="h2h.js"></script>
 <script>
 (function () {
   "use strict";
@@ -123,11 +135,21 @@
   var MARGIN_SD = 12;      // écart-type de l'écart final d'un match NBA
   var SHRINK_GAMES = 6;    // poids de la moyenne de la ligue, en matchs (6 = le plus proche des lignes du marché au test)
   var TOTAL_SD = 18;       // écart-type du total de points d'un match NBA
-  var EV_GOOD = 0.05;      // valeur espérée à partir de laquelle on dit « ça vaut le coup »
-  var EV_SUSPECT = 0.15;   // au-delà, l'écart avec le book vient presque toujours d'une info que le modèle n'a pas
+  // Marge de sécurité : valeur espérée minimale pour dire « ça vaut le coup » (réglable dans la page, 10 % par défaut).
+  var EV_GOOD = 0.10;
+  try { var mg = parseFloat(localStorage.getItem("paris-stats-marge")); if (isFinite(mg) && mg >= 0 && mg <= 50) EV_GOOD = mg / 100; } catch (e) {}
+  // Au-delà, l'écart avec le book vient presque toujours d'une info que le modèle n'a pas.
+  var EV_SUSPECT = Math.max(0.15, EV_GOOD + 0.10);
   var STD_DEC = 1.91;      // cote supposée (-110) pour l'écart et le total, ESPN ne les fournit pas
   var KELLY_FRAC = 0.25;   // quart de Kelly
-  var MAX_STAKE = 0.03;    // jamais plus de 3 % de la bankroll sur un pari
+  var MAX_STAKE = 0.03;
+  // Stats des joueurs : colonne dans players.js, plancher de l'écart-type, ajustement par la défense adverse.
+  var STATS = {
+    pts: { i: 6, label: "Points", short: "pts", floor: 4, opp: true },
+    reb: { i: 7, label: "Rebonds", short: "reb", floor: 2 },
+    ast: { i: 8, label: "Passes", short: "passes", floor: 1.5 },
+    tpm: { i: 9, label: "Paniers à 3 pts", short: "3 pts", floor: 1 }
+  };    // jamais plus de 3 % de la bankroll sur un pari
 
   var data = window.NBA_DATA;
   var app = document.getElementById("app");
@@ -310,6 +332,51 @@
       "</div></div>";
   }
 
+  function abbr(id) { return teams[id] ? teams[id].info.abbr : "?"; }
+
+  // ---- Face-à-face et blessures ----
+  var PL = window.NBA_PLAYERS && window.NBA_PLAYERS.players ? window.NBA_PLAYERS : null;
+  var H2H = window.NBA_H2H && Array.isArray(window.NBA_H2H.games) ? window.NBA_H2H.games : [];
+  var STATUS_FR = { "Out": ["absent", "out"], "Day-To-Day": ["incertain", "dtd"], "Questionable": ["incertain", "dtd"], "Doubtful": ["douteux", "out"], "Probable": ["probable", ""], "Suspension": ["suspendu", "out"] };
+  function injuryOf(teamId, playerId) {
+    var list = PL && PL.injuries && PL.injuries[teamId] || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === playerId) return list[i];
+    return null;
+  }
+  function statusTag(inj) {
+    if (!inj) return "";
+    var fr = STATUS_FR[inj.s] || [inj.s, "dtd"];
+    return '<span class="tag ' + fr[1] + '" title="' + esc(inj.c) + '">' + esc(fr[0]) + "</span>";
+  }
+  function h2hHtml(h, a) {
+    var hid = h.info.id, aid = a.info.id, list = [];
+    H2H.forEach(function (r) {
+      if ((r[2] === hid && r[3] === aid) || (r[2] === aid && r[3] === hid)) list.push({ d: r[1], home: r[2], hs: r[4], as: r[5] });
+    });
+    data.games.forEach(function (g) {
+      if ((g.homeId === hid && g.awayId === aid) || (g.homeId === aid && g.awayId === hid)) list.push({ d: g.date.slice(0, 10), home: g.homeId, hs: g.homeScore, as: g.awayScore });
+    });
+    if (!list.length) return "";
+    list.sort(function (x, y) { return y.d.localeCompare(x.d); });
+    list = list.slice(0, 10);
+    var hw = 0, tot = 0;
+    list.forEach(function (x) { var hWon = (x.home === hid) === (x.hs > x.as); if (hWon) hw++; tot += x.hs + x.as; });
+    var lead = hw >= list.length - hw ? [h, hw, list.length - hw] : [a, list.length - hw, hw];
+    return '<span class="info">Face-à-face (' + (list.length > 1 ? list.length + " derniers" : "dernier") + ", depuis " + esc(list[list.length - 1].d.slice(0, 4)) + ") : <b>" + esc(lead[0].info.abbr) + " " + lead[1] + "-" + lead[2] +
+      "</b> · total moyen " + f1(tot / list.length) + "</span>";
+  }
+  function injHtml(g) {
+    if (!PL || !PL.injuries) return "";
+    var parts = [g.awayId, g.homeId].map(function (tid) {
+      var list = (PL.injuries[tid] || []).filter(function (x) { return x.s !== "Probable"; });
+      if (!list.length) return "";
+      return "<b>" + esc(abbr(tid)) + "</b> : " + list.slice(0, 6).map(function (x) {
+        return esc(x.n) + " (" + esc((STATUS_FR[x.s] || [x.s])[0]) + ")";
+      }).join(", ") + (list.length > 6 ? "…" : "");
+    }).filter(Boolean);
+    return parts.length ? '<span class="info">Blessés · ' + parts.join(" · ") + "</span>" : "";
+  }
+
   function upcomingHtml() {
     var now = Date.now();
     var list = (data.upcoming || []).filter(function (g) {
@@ -331,6 +398,7 @@
         if (bits.length) foot += "<br>Ligne " + esc(o.provider || "du book") + " : " + bits.join(" · ");
         foot += marketsHtml(g, h, a, pr, o);
       }
+      foot += h2hHtml(h, a) + injHtml(g);
       var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
       return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
         sideHtml(g, "away", a, pr.awayPts, pr.pAway, americanToDecimal(o.awayMoneyline), false) +
@@ -401,13 +469,16 @@
     }).join("") + "</div>";
   }
   function bankHtml() {
-    return '<label class="bank sub">Bankroll ($) <input class="odds num" id="bankroll" type="number" inputmode="decimal" min="0" step="10" placeholder="1000" value="' +
+    return '<label class="bank sub">Marge de sécurité (%) <input class="odds num" id="marge" type="number" inputmode="decimal" min="0" max="50" step="1" value="' +
+      Math.round(EV_GOOD * 100) + '"> <span>On dit « ça vaut le coup » seulement si la cote du book dépasse notre cote d\'au moins cette marge.</span></label>' +
+      '<label class="bank sub">Bankroll ($) <input class="odds num" id="bankroll" type="number" inputmode="decimal" min="0" step="10" placeholder="1000" value="' +
       (bankroll || "") + '"> <span>Mise suggérée : ¼ Kelly, max 3 % de la bankroll, seulement sur « ça vaut le coup ».</span></label>';
   }
 
   app.innerHTML =
     '<nav class="menu">' +
       '<button type="button" data-view="matchs">Matchs</button>' +
+      '<button type="button" data-view="joueurs">Joueurs</button>' +
       '<button type="button" data-view="paris">Nos paris<span class="count" id="betCount"></span></button>' +
       '<button type="button" data-view="equipes">Équipes</button>' +
     "</nav>" +
@@ -417,6 +488,7 @@
     bankHtml() +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
     "</section>" +
+    '<section class="view" id="view-joueurs"></section>' +
     '<section class="view" id="view-paris"></section>' +
     '<section class="view" id="view-equipes">' +
     "<h2>Équipes</h2>" +
@@ -469,19 +541,32 @@
     if (changed) saveBets();
   })();
 
-  function abbr(id) { return teams[id] ? teams[id].info.abbr : "?"; }
+  // abbr() est défini plus haut.
   function sideLine(x) { return (x > 0 ? "+" : "") + x; }
 
   // b.line : écart du point de vue du domicile, ou total.
   function betLabel(b) {
     if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
     if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
+    if (b.market === "prop") return (b.playerName || "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (STATS[b.stat] ? STATS[b.stat].short : "");
     return (b.pick === "over" ? "Over " : "Under ") + b.line;
   }
 
+  function propValue(b) {
+    if (!PL || !STATS[b.stat] || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
+    var pl = PL.players[b.playerId], row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
+    return row ? row[STATS[b.stat].i] : null; // null = n'a pas joué
+  }
   function betResult(b) {
     var g = gameById[b.gameId];
     if (!g) return null;
+    if (b.market === "prop") {
+      var pv = propValue(b);
+      if (pv === undefined) return null;
+      if (pv === null) return "P";
+      var px = pv - b.line; if (b.pick === "under") px = -px;
+      return px > 0 ? "W" : px < 0 ? "L" : "P";
+    }
     var m = g.homeScore - g.awayScore, x;
     if (b.market === "ml") x = (b.pick === "home") === (m > 0) ? 1 : -1;
     else if (b.market === "spread") { x = m + b.line; if (b.pick === "away") x = -x; }
@@ -541,7 +626,9 @@
       table = '<div class="scroll"><table><thead><tr><th>Date</th><th>Match</th><th>Pari</th><th>Parieur</th><th>Cote</th><th>Mise</th><th>Modèle</th><th>Résultat</th><th>Profit</th><th>CLV</th><th></th></tr></thead><tbody>' +
         list.map(function (b) {
           var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
-          var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (g ? ' <small class="sub">' + g.awayScore + "-" + g.homeScore + "</small>" : "")
+          var detail = g ? g.awayScore + "-" + g.homeScore : "";
+          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + STATS[b.stat].short; }
+          var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (detail ? ' <small class="sub">' + esc(detail) + "</small>" : "")
                       : '<span class="res-pending">En attente</span>';
           return "<tr>" +
             "<td>" + esc(shortDate.format(new Date(b.date))) + "</td>" +
@@ -573,17 +660,133 @@
     document.getElementById("betCount").textContent = bets.length ? "(" + bets.length + (pending ? ", " + pending + " en attente" : "") + ")" : "";
   }
 
+  // ================= Joueurs =================
+  var PL_KEY = "paris-stats-lignes-joueurs";
+  var plLines = {};
+  try { plLines = JSON.parse(localStorage.getItem(PL_KEY) || "{}") || {}; } catch (e) { plLines = {}; }
+  (function () { // oublie les lignes des matchs passés
+    Object.keys(plLines).forEach(function (k) { if (!upcomingById[k.split(":")[0]]) delete plLines[k]; });
+    try { localStorage.setItem(PL_KEY, JSON.stringify(plLines)); } catch (e) {}
+  })();
+  function plKey(gid, pid, st) { return gid + ":" + pid + ":" + st; }
+  var plGame = null, plStat = "pts", plInfo = {};
+
+  function plRows(g, teamId, oppId) {
+    var st = STATS[plStat];
+    var oppF = st.opp && teams[oppId] ? shrunk(teams[oppId].all, "pa") / leagueAvg : 1;
+    var rows = [];
+    Object.keys(PL.players).forEach(function (pid) {
+      var p = PL.players[pid];
+      if (p.t !== teamId || p.g.length < 3) return;
+      var mins = p.g.map(function (r) { return r[5]; });
+      if (avg(mins) < 12) return;
+      var vals = p.g.map(function (r) { return r[st.i]; });
+      var season = avg(vals), last5 = avg(vals.slice(-5)), min5 = avg(mins.slice(-5));
+      var sd = Math.sqrt(avg(vals.map(function (v) { return (v - season) * (v - season); })) * vals.length / Math.max(1, vals.length - 1));
+      var proj = (0.6 * season + 0.4 * last5) * oppF;
+      rows.push({ pid: pid, p: p, season: season, last5: last5, min5: min5, sd: Math.max(sd, st.floor), proj: proj, last10: vals.slice(-10), inj: injuryOf(teamId, pid), gid: g.id, oppF: oppF });
+    });
+    return rows.sort(function (x, y) { return y.proj - x.proj; });
+  }
+
+  function plResultHtml(info) {
+    var L = plLines[info.key] || {};
+    var line = parseFloat(L.l);
+    if (!isFinite(line)) return { hit: "", pct: "", val: '<span class="sub">entre la ligne</span>' };
+    var pOver = 1 - normCdf((line - info.proj) / info.sd);
+    var hits = info.last10.filter(function (v) { return v > line; }).length;
+    var oO = parseFloat(L.o) > 1 ? parseFloat(L.o) : STD_DEC, oU = parseFloat(L.u) > 1 ? parseFloat(L.u) : STD_DEC;
+    var evO = pOver * oO - 1, evU = (1 - pOver) * oU - 1;
+    var over = evO >= evU, best = over ? "over" : "under";
+    return {
+      hit: hits + "/" + info.last10.length,
+      pct: pct(pOver),
+      val: (over ? "Over " : "Under ") + verdict(over ? pOver : 1 - pOver, over ? oO : oU) +
+        ' <button type="button" class="addbet" data-g="' + esc(info.gid) + '" data-m="prop" data-pid="' + esc(info.pid) + '" data-stat="' + plStat +
+        '" data-pick="' + best + '" data-po="' + pOver + '">＋ Parier</button>'
+    };
+  }
+
+  function playersHtml() {
+    if (!PL) return "<h2>Joueurs</h2>" + '<div class="empty">Les stats des joueurs ne sont pas encore chargées. Elles arrivent au prochain rafraîchissement automatique (<code>node fetch-extras.mjs</code>).</div>';
+    var now = Date.now();
+    var list = (data.upcoming || []).filter(function (g) { return teams[g.homeId] && teams[g.awayId] && new Date(g.date).getTime() > now; });
+    if (!list.length) return "<h2>Joueurs</h2>" + '<div class="empty">Aucun match à venir.</div>';
+    if (!list.some(function (g) { return g.id === plGame; })) plGame = list[0].id;
+    var g = upcomingById[plGame];
+    var fmt = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    var head = "<h2>Joueurs</h2>" +
+      '<div class="plsel"><select id="plGame">' + list.map(function (x) {
+        return '<option value="' + esc(x.id) + '"' + (x.id === plGame ? " selected" : "") + ">" + esc(abbr(x.awayId) + " @ " + abbr(x.homeId) + " · " + fmt.format(new Date(x.date))) + "</option>";
+      }).join("") + "</select>" +
+      '<select id="plStat">' + Object.keys(STATS).map(function (k) { return '<option value="' + k + '"' + (k === plStat ? " selected" : "") + ">" + STATS[k].label + "</option>"; }).join("") + "</select></div>" +
+      '<div class="sub">Entre la ligne du book (ex. 22.5) et ses cotes Over/Under (1.91 par défaut). « 10 dern. » = nombre de matchs au-dessus de la ligne sur les 10 derniers.</div>';
+    plInfo = {};
+    var body = [[g.awayId, g.homeId], [g.homeId, g.awayId]].map(function (pair) {
+      var rows = plRows(g, pair[0], pair[1]);
+      if (!rows.length) return "<h2>" + esc(abbr(pair[0])) + "</h2><div class=\"empty\">Pas assez de matchs joués.</div>";
+      var oppTxt = STATS[plStat].opp ? " · défense " + esc(abbr(pair[1])) + " : " + (rows[0].oppF >= 1 ? "+" : "") + ((rows[0].oppF - 1) * 100).toFixed(1) + " % de points accordés vs la ligue" : "";
+      return "<h2>" + esc(teams[pair[0]].info.name) + '<span class="sub">' + oppTxt + "</span></h2>" +
+        '<div class="scroll"><table class="pl"><thead><tr><th>Joueur</th><th>Min (5)</th><th>Saison</th><th>5 dern.</th><th>Proj.</th><th>Ligne</th><th>Cote O</th><th>Cote U</th><th>10 dern.</th><th>Over</th><th>Valeur</th></tr></thead><tbody>' +
+        rows.map(function (r) {
+          var key = plKey(g.id, r.pid, plStat), L = plLines[key] || {};
+          var info = { key: key, proj: r.proj, sd: r.sd, last10: r.last10, gid: g.id, pid: r.pid };
+          plInfo[key] = info;
+          var out = r.inj && (r.inj.s === "Out" || r.inj.s === "Suspension");
+          var res = out ? { hit: "", pct: "", val: '<span class="sub">absent</span>' } : plResultHtml(info);
+          var inp = function (f, ph) { return '<input class="plin num" type="number" inputmode="decimal" step="' + (f === "l" ? "0.5" : "0.01") + '" data-k="' + esc(key) + '" data-f="' + f + '" placeholder="' + ph + '" value="' + esc(L[f] || "") + '">'; };
+          return '<tr' + (out ? ' class="out"' : "") + ">" +
+            '<td class="pname"><b>' + esc(r.p.n) + "</b> <small>" + esc(r.p.pos) + "</small>" + statusTag(r.inj) + "</td>" +
+            '<td class="num">' + f1(r.min5) + "</td>" +
+            '<td class="num">' + f1(r.season) + "</td>" +
+            '<td class="num">' + f1(r.last5) + "</td>" +
+            '<td class="num"><b>' + f1(r.proj) + "</b></td>" +
+            "<td>" + inp("l", "") + "</td><td>" + inp("o", "1.91") + "</td><td>" + inp("u", "1.91") + "</td>" +
+            '<td class="num" data-r="hit" data-k="' + esc(key) + '">' + res.hit + "</td>" +
+            '<td class="num" data-r="pct" data-k="' + esc(key) + '">' + res.pct + "</td>" +
+            '<td data-r="val" data-k="' + esc(key) + '">' + res.val + "</td></tr>";
+        }).join("") + "</tbody></table></div>";
+    }).join("");
+    var note = '<p class="sub">Projection = (60 % moyenne de la saison + 40 % des 5 derniers matchs)' + (STATS[plStat].opp ? " × défense adverse (points accordés vs la moyenne de la ligue)" : "") +
+      ". Probabilité Over : loi normale avec l'écart-type du joueur (minimum " + STATS[plStat].floor + "). Ne tient pas compte des minutes changées par une blessure d'un coéquipier : vérifie les blessés avant de parier." +
+      (PL.injuriesAt ? " Blessures à jour du " + esc(new Date(PL.injuriesAt).toLocaleString("fr-CA", { dateStyle: "medium", timeStyle: "short" })) + "." : "") + "</p>";
+    return head + body + note;
+  }
+  function renderPlayers() { document.getElementById("view-joueurs").innerHTML = playersHtml(); }
+
+  app.addEventListener("change", function (e) {
+    if (e.target.id === "plGame") { plGame = e.target.value; renderPlayers(); }
+    else if (e.target.id === "plStat") { plStat = e.target.value; renderPlayers(); }
+  });
+  app.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el.classList || !el.classList.contains("plin")) return;
+    var k = el.getAttribute("data-k"), f = el.getAttribute("data-f");
+    var L = plLines[k] || (plLines[k] = {});
+    if (el.value === "") delete L[f]; else L[f] = el.value;
+    if (!Object.keys(L).length) delete plLines[k];
+    try { localStorage.setItem(PL_KEY, JSON.stringify(plLines)); } catch (err) {}
+    var info = plInfo[k];
+    if (!info) return;
+    var res = plResultHtml(info);
+    ["hit", "pct", "val"].forEach(function (r) {
+      var cell = app.querySelector('td[data-r="' + r + '"][data-k="' + k + '"]');
+      if (cell) cell.innerHTML = res[r];
+    });
+  });
+
   // ---- Menu ----
   var VIEW_KEY = "paris-stats-view";
   var view = "matchs";
   try { view = localStorage.getItem(VIEW_KEY) || "matchs"; } catch (e) {}
   function showView(v) {
-    view = ["matchs", "paris", "equipes"].indexOf(v) >= 0 ? v : "matchs";
-    ["matchs", "paris", "equipes"].forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
+    view = ["matchs", "joueurs", "paris", "equipes"].indexOf(v) >= 0 ? v : "matchs";
+    ["matchs", "joueurs", "paris", "equipes"].forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
     app.querySelectorAll("nav.menu button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-view") === view); });
     try { localStorage.setItem(VIEW_KEY, view); } catch (e) {}
   }
   renderBets();
+  renderPlayers();
   showView(view);
 
   // ---- Formulaire d'ajout ----
@@ -598,6 +801,23 @@
     var h = abbr(g.homeId), a = abbr(g.awayId);
     draft = { gameId: g.id, date: g.date, homeId: g.homeId, awayId: g.awayId, market: m, p: parseFloat(btn.getAttribute("data-p")) || null };
     var sel = document.getElementById("bmPick"), opts;
+    if (m === "prop") {
+      var pid = btn.getAttribute("data-pid"), st = btn.getAttribute("data-stat"), saved2 = plLines[plKey(g.id, pid, st)] || {};
+      var pOver = parseFloat(btn.getAttribute("data-po"));
+      draft.playerId = pid; draft.playerName = PL.players[pid].n; draft.stat = st; draft.pOver = pOver;
+      draft.oddsOver = parseFloat(saved2.o) || STD_DEC; draft.oddsUnder = parseFloat(saved2.u) || STD_DEC;
+      draft.p = pick === "over" ? pOver : 1 - pOver;
+      sel.innerHTML = [["over", "Over"], ["under", "Under"]].map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === pick ? " selected" : "") + ">" + x[1] + "</option>"; }).join("");
+      document.getElementById("bmTitle").textContent = draft.playerName + " · " + STATS[st].label + " · " + a + " @ " + h;
+      document.getElementById("bmLineWrap").hidden = false;
+      document.getElementById("bmLine").value = saved2.l || "";
+      document.getElementById("bmOdds").value = (pick === "over" ? draft.oddsOver : draft.oddsUnder).toFixed(2);
+      fillStake();
+      document.getElementById("bmWho").value = whoLast;
+      modal.hidden = false;
+      document.getElementById("bmStake").focus();
+      return;
+    }
     if (m === "ml") opts = [["away", a + " gagne"], ["home", h + " gagne"]];
     else if (m === "spread") opts = [["home", h + " (ligne domicile)"], ["away", a + " (ligne visiteur)"]];
     else opts = [["over", "Over"], ["under", "Under"]];
@@ -624,7 +844,22 @@
     document.getElementById("bmOdds").focus();
   }
 
+  function fillStake() {
+    var dec = parseFloat(document.getElementById("bmOdds").value), stake = "";
+    if (bankroll > 0 && draft.p && dec > 1) {
+      var b = dec - 1, f = Math.min((b * draft.p - (1 - draft.p)) / b * KELLY_FRAC, MAX_STAKE);
+      if (f > 0) stake = Math.max(1, Math.round(f * bankroll));
+    }
+    document.getElementById("bmStake").value = stake;
+  }
   document.getElementById("bmPick").addEventListener("change", function () {
+    if (draft && draft.market === "prop") {
+      var over = this.value === "over";
+      draft.p = over ? draft.pOver : 1 - draft.pOver;
+      document.getElementById("bmOdds").value = (over ? draft.oddsOver : draft.oddsUnder).toFixed(2);
+      fillStake();
+      return;
+    }
     if (draft && draft.market === "spread") { var li = document.getElementById("bmLine"); if (li.value !== "") li.value = -parseFloat(li.value); }
   });
   document.getElementById("bmCancel").addEventListener("click", function () { modal.hidden = true; });
@@ -636,6 +871,7 @@
     var who = document.getElementById("bmWho").value.trim();
     if (!(odds > 1) || !(stake > 0) || !who) return;
     var b = Object.assign({}, draft, { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), pick: pick, odds: odds, stake: stake, who: who, createdAt: new Date().toISOString() });
+    if (b.market === "prop") { delete b.pOver; delete b.oddsOver; delete b.oddsUnder; }
     if (b.market !== "ml") {
       var lv = parseFloat(document.getElementById("bmLine").value);
       if (!isFinite(lv)) return;
@@ -649,6 +885,15 @@
 
   app.addEventListener("input", function (e) {
     var el = e.target;
+    if (el.id === "marge") {
+      var mv = parseFloat(el.value);
+      if (!isFinite(mv) || mv < 0 || mv > 50) return;
+      EV_GOOD = mv / 100; EV_SUSPECT = Math.max(0.15, EV_GOOD + 0.10);
+      try { localStorage.setItem("paris-stats-marge", String(mv)); } catch (err) {}
+      document.getElementById("upcoming").innerHTML = basisHtml() + upcomingHtml();
+      renderPlayers();
+      return;
+    }
     if (el.id === "bankroll") {
       bankroll = parseFloat(el.value) || 0;
       try { localStorage.setItem("paris-stats-bankroll", String(bankroll)); } catch (err) {}
@@ -699,7 +944,7 @@
       var have = {}; bets.forEach(function (b) { have[b.id] = true; });
       var added = 0;
       arr.forEach(function (b) {
-        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line))) { bets.push(b); have[b.id] = true; added++; }
+        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!STATS[b.stat]))) { bets.push(b); have[b.id] = true; added++; }
       });
       saveBets(); renderBets();
       document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";
