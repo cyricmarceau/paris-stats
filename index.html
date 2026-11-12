@@ -1093,7 +1093,7 @@
     whoLast = who; try { localStorage.setItem("paris-stats-who", who); } catch (err) {}
     closeModal();
     renderBets();
-    toast("✓ Pari ajouté : <b>" + esc(betLabel(b)) + "</b> · " + stake.toFixed(0) + ' $ <button type="button" class="btn" data-goto="paris">Voir nos paris</button>');
+    toast("✓ Pari ajouté : <b>" + esc(betLabel(b)) + "</b> · " + (stake % 1 ? stake.toFixed(2) : stake.toFixed(0)) + ' $ <button type="button" class="btn" data-goto="paris">Voir nos paris</button>');
   });
 
   app.addEventListener("input", function (e) {
