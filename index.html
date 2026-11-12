@@ -51,6 +51,11 @@
   .badge.yes { background: var(--success, #4ade80); color: #06240f; }
   .badge.thin { background: var(--warning, #facc15); color: #2a2000; }
   .badge.no { border: 1px solid var(--border, #262c3a); }
+  .badge.sus { background: #fb923c; color: #2a1000; }
+  .stake { font-weight: 600; color: var(--foreground, #e7eaf0); }
+  .mkt { display: block; margin-top: 4px; }
+  .bank { margin: 6px 0 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bank input { width: 90px; }
   .basis { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .basis button {
     font: inherit; padding: 4px 12px; cursor: pointer; border-radius: 999px;
@@ -88,8 +93,13 @@
   // ---- Réglages du modèle ----
   var HOME_EDGE = 2.5;     // avantage du terrain, en points d'écart
   var MARGIN_SD = 12;      // écart-type de l'écart final d'un match NBA
-  var SHRINK_GAMES = 3;    // poids de la moyenne de la ligue, en matchs
+  var SHRINK_GAMES = 6;    // poids de la moyenne de la ligue, en matchs (6 = le plus proche des lignes du marché au test)
+  var TOTAL_SD = 18;       // écart-type du total de points d'un match NBA
   var EV_GOOD = 0.05;      // valeur espérée à partir de laquelle on dit « ça vaut le coup »
+  var EV_SUSPECT = 0.15;   // au-delà, l'écart avec le book vient presque toujours d'une info que le modèle n'a pas
+  var STD_DEC = 1.91;      // cote supposée (-110) pour l'écart et le total, ESPN ne les fournit pas
+  var KELLY_FRAC = 0.25;   // quart de Kelly
+  var MAX_STAKE = 0.03;    // jamais plus de 3 % de la bankroll sur un pari
 
   var data = window.NBA_DATA;
   var app = document.getElementById("app");
@@ -144,15 +154,22 @@
   // ---- Projection ----
   // Attaque et défense : moyenne sur la période choisie (5 derniers par défaut),
   // ramenée vers la moyenne de la ligue parce que l'échantillon est petit.
-  var BASES = { l5: "5 derniers matchs", l10: "10 derniers matchs", all: "Saison" };
-  var basis = "l5";
-  try { basis = localStorage.getItem("paris-stats-base") || "l5"; } catch (e) {}
-  if (!BASES[basis]) basis = "l5";
+  var BASES = { all: "Saison (recommandé)", mix: "Saison + 10 derniers", l10: "10 derniers matchs", l5: "5 derniers matchs" };
+  var BASIS_KEY = "paris-stats-base-v2";
+  var basis = "all";
+  try { basis = localStorage.getItem(BASIS_KEY) || "all"; } catch (e) {}
+  if (!BASES[basis]) basis = "all";
 
-  function rating(t, key) {
-    var s = t[basis];
+  function shrunk(s, key) {
     return (s[key] * s.n + leagueAvg * SHRINK_GAMES) / (s.n + SHRINK_GAMES);
   }
+  function rating(t, key) {
+    if (basis === "mix") return 0.6 * shrunk(t.all, key) + 0.4 * shrunk(t.l10, key);
+    return shrunk(t[basis], key);
+  }
+
+  var bankroll = 0;
+  try { bankroll = parseFloat(localStorage.getItem("paris-stats-bankroll")) || 0; } catch (e) {}
 
   // Fonction de répartition de la loi normale centrée réduite.
   function normCdf(z) {
@@ -205,10 +222,40 @@
   function verdict(p, dec) {
     if (!isFinite(dec) || dec <= 1) return "";
     var ev = p * dec - 1;
-    var cls = ev >= EV_GOOD ? "yes" : ev > 0 ? "thin" : "no";
-    var txt = ev >= EV_GOOD ? "Ça vaut le coup" : ev > 0 ? "Mince" : "Non";
+    var cls, txt;
+    if (ev >= EV_SUSPECT) { cls = "sus"; txt = "Suspect : vérifie blessures et repos"; }
+    else if (ev >= EV_GOOD) { cls = "yes"; txt = "Ça vaut le coup"; }
+    else if (ev > 0) { cls = "thin"; txt = "Mince"; }
+    else { cls = "no"; txt = "Non"; }
+    var stake = "";
+    if (cls === "yes" && bankroll > 0) {
+      var b = dec - 1;
+      var f = Math.min((b * p - (1 - p)) / b * KELLY_FRAC, MAX_STAKE);
+      if (f > 0) stake = ' <span class="stake num">Mise ' + Math.round(f * bankroll) + " $</span>";
+    }
     return '<span class="num ' + (ev > 0 ? "pos" : "neg") + '">' + (ev > 0 ? "+" : "") + (ev * 100).toFixed(1) +
-      ' %</span> <span class="badge ' + cls + '">' + txt + "</span>";
+      ' %</span> <span class="badge ' + cls + '">' + txt + "</span>" + stake;
+  }
+
+  function sgn(x) { return (x > 0 ? "+" : "") + x; }
+
+  // Écart et total : probabilité du meilleur côté contre une cote standard de -110.
+  function marketsHtml(h, a, pr, o) {
+    var out = [];
+    var margin = pr.homePts - pr.awayPts, total = pr.homePts + pr.awayPts;
+    if (typeof o.spread === "number") {
+      var pHome = normCdf((margin + o.spread) / MARGIN_SD);
+      var side = pHome >= 0.5 ? esc(h.info.abbr) + " " + sgn(o.spread) : esc(a.info.abbr) + " " + sgn(-o.spread);
+      var p = Math.max(pHome, 1 - pHome);
+      out.push('<span class="mkt">Écart : <b>' + side + "</b> couvre à " + pct(p) + " · " + verdict(p, STD_DEC) + "</span>");
+    }
+    if (typeof o.total === "number") {
+      var pOver = 1 - normCdf((o.total - total) / TOTAL_SD);
+      var tside = pOver >= 0.5 ? "Over " + o.total : "Under " + o.total;
+      var tp = Math.max(pOver, 1 - pOver);
+      out.push('<span class="mkt">Total : <b>' + tside + "</b> à " + pct(tp) + " · " + verdict(tp, STD_DEC) + "</span>");
+    }
+    return out.length ? out.join("") + '<span class="mkt">(écart et total calculés à une cote de -110)</span>' : "";
   }
 
   function sideHtml(g, key, t, pts, p, bookDec, isHome) {
@@ -251,6 +298,7 @@
         if (typeof o.spread === "number") bits.push("écart " + esc(h.info.abbr) + " " + (o.spread > 0 ? "+" : "") + o.spread);
         if (typeof o.total === "number") bits.push("total " + o.total);
         if (bits.length) foot += "<br>Ligne " + esc(o.provider || "du book") + " : " + bits.join(" · ");
+        foot += marketsHtml(h, a, pr, o);
       }
       var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
       return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
@@ -321,26 +369,39 @@
       return '<button type="button" data-basis="' + k + '"' + (k === basis ? ' class="on"' : "") + ">" + BASES[k] + "</button>";
     }).join("") + "</div>";
   }
+  function bankHtml() {
+    return '<label class="bank sub">Bankroll ($) <input class="odds num" id="bankroll" type="number" inputmode="decimal" min="0" step="10" placeholder="1000" value="' +
+      (bankroll || "") + '"> <span>Mise suggérée : ¼ Kelly, max 3 % de la bankroll, seulement sur « ça vaut le coup ».</span></label>';
+  }
 
   app.innerHTML = stale +
     "<h2>Matchs à venir</h2>" +
     '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.</div>' +
+    bankHtml() +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
     "<h2>Équipes</h2>" +
     '<div id="table">' + tableHtml() + "</div>" +
     "<details><summary>Comment les projections sont calculées</summary>" +
     "<p>Pour chaque équipe, l'attaque (points pour) et la défense (points contre) sont les moyennes sur la période choisie : " +
-    "5 derniers matchs, 10 derniers ou toute la saison. Ces moyennes sont un peu ramenées vers celle de la ligue (" +
+    "par défaut toute la saison, ou 60 % saison + 40 % 10 derniers, 10 derniers ou 5 derniers. Ces moyennes sont ramenées vers celle de la ligue (" +
     f1(leagueAvg) + " points, avec un poids de " + SHRINK_GAMES + " matchs), parce que quelques matchs ne suffisent pas à juger une équipe.</p>" +
     "<p>Points projetés = attaque de l'équipe × défense de l'adversaire ÷ moyenne de la ligue, avec " + HOME_EDGE +
     " points d'écart en faveur de l'équipe à domicile. La probabilité de victoire vient de l'écart projeté, en supposant un écart-type de " +
     MARGIN_SD + " points. Notre cote = 1 ÷ probabilité.</p>" +
     "<p>Valeur espérée = probabilité × cote du book − 1. À partir de +" + Math.round(EV_GOOD * 100) +
-    " %, la page dit « ça vaut le coup ». Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
+    " %, la page dit « ça vaut le coup » ; au-delà de +" + Math.round(EV_SUSPECT * 100) + " %, elle dit « suspect » : un vrai avantage contre le book dépasse rarement quelques pour cent. " +
+    "Écart : probabilité de couvrir = écart projeté contre la ligne, écart-type " + MARGIN_SD + " pts. Total : écart-type " + TOTAL_SD + " pts. Les deux supposent une cote de -110 (1.91). " +
+    "Mise = ¼ de Kelly, plafonnée à " + Math.round(MAX_STAKE * 100) + " % de la bankroll. Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
     "</details>";
 
   app.addEventListener("input", function (e) {
     var el = e.target;
+    if (el.id === "bankroll") {
+      bankroll = parseFloat(el.value) || 0;
+      try { localStorage.setItem("paris-stats-bankroll", String(bankroll)); } catch (err) {}
+      document.getElementById("upcoming").innerHTML = basisHtml() + upcomingHtml();
+      return;
+    }
     if (!el.classList || !el.classList.contains("odds")) return;
     var id = el.getAttribute("data-id");
     if (el.value === "") delete saved[id]; else saved[id] = { v: el.value, t: Date.now() };
@@ -371,7 +432,7 @@
     var pick = e.target.closest ? e.target.closest("button[data-basis]") : null;
     if (pick) {
       basis = pick.getAttribute("data-basis");
-      try { localStorage.setItem("paris-stats-base", basis); } catch (err) {}
+      try { localStorage.setItem(BASIS_KEY, basis); } catch (err) {}
       document.getElementById("upcoming").innerHTML = basisHtml() + upcomingHtml();
       return;
     }
