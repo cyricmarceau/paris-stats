@@ -76,6 +76,34 @@
   details { margin-top: 24px; color: var(--muted-foreground, #97a0b3); font-size: 13px; }
   details p { max-width: 70ch; }
   .empty { padding: 24px; border: 1px dashed var(--border, #262c3a); border-radius: var(--radius, 10px); }
+  nav.menu { display: flex; gap: 6px; margin: 14px 0 4px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; padding: 8px 0; background: var(--background, #0f1218); }
+  nav.menu button { font: inherit; font-weight: 600; padding: 7px 14px; cursor: pointer; border-radius: 999px; color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #262c3a); }
+  nav.menu button.on { background: var(--foreground, #e7eaf0); color: var(--background, #0f1218); }
+  nav.menu .count { font-size: 11px; opacity: .7; margin-left: 4px; }
+  .view[hidden] { display: none; }
+  button.addbet { font: inherit; font-size: 12px; padding: 2px 9px; cursor: pointer; border-radius: 6px; color: var(--foreground, #e7eaf0); background: none; border: 1px dashed var(--border, #3a4255); }
+  button.addbet:hover { border-style: solid; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+  .modal[hidden] { display: none; }
+  .tools[hidden] { display: none; }
+  .modal form { background: var(--card, #171b25); border: 1px solid var(--border, #262c3a); border-radius: var(--radius, 10px); padding: 18px; width: 100%; max-width: 380px; display: grid; gap: 10px; }
+  .modal h3 { margin: 0; font-size: 16px; }
+  .modal label { display: grid; gap: 4px; font-size: 12px; color: var(--muted-foreground, #97a0b3); }
+  .modal input, .modal select { font: inherit; padding: 7px 9px; color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; }
+  .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn { font: inherit; font-weight: 600; padding: 7px 14px; cursor: pointer; border-radius: 8px; color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #262c3a); }
+  .btn.main { background: var(--success, #4ade80); color: #06240f; border-color: transparent; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+  .kpi { background: var(--card, #171b25); border: 1px solid var(--border, #262c3a); border-radius: var(--radius, 10px); padding: 10px 12px; }
+  .kpi .l { font-size: 11px; color: var(--muted-foreground, #97a0b3); text-transform: uppercase; letter-spacing: .05em; }
+  .kpi .v { font-size: 20px; font-weight: 700; }
+  .res-W { color: var(--success, #4ade80); font-weight: 700; }
+  .res-L { color: var(--destructive, #f87171); font-weight: 700; }
+  .res-P, .res-pending { color: var(--muted-foreground, #97a0b3); }
+  button.del { font: inherit; background: none; border: 0; color: var(--muted-foreground, #97a0b3); cursor: pointer; font-size: 15px; }
+  .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .tools textarea { width: 100%; min-height: 90px; font: 12px var(--font-mono, ui-monospace, monospace); color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; padding: 8px; }
   code { font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
 </style>
 </head>
@@ -240,20 +268,22 @@
   function sgn(x) { return (x > 0 ? "+" : "") + x; }
 
   // Écart et total : probabilité du meilleur côté contre une cote standard de -110.
-  function marketsHtml(h, a, pr, o) {
+  function marketsHtml(g, h, a, pr, o) {
     var out = [];
     var margin = pr.homePts - pr.awayPts, total = pr.homePts + pr.awayPts;
     if (typeof o.spread === "number") {
       var pHome = normCdf((margin + o.spread) / MARGIN_SD);
       var side = pHome >= 0.5 ? esc(h.info.abbr) + " " + sgn(o.spread) : esc(a.info.abbr) + " " + sgn(-o.spread);
       var p = Math.max(pHome, 1 - pHome);
-      out.push('<span class="mkt">Écart : <b>' + side + "</b> couvre à " + pct(p) + " · " + verdict(p, STD_DEC) + "</span>");
+      out.push('<span class="mkt">Écart : <b>' + side + "</b> couvre à " + pct(p) + " · " + verdict(p, STD_DEC) +
+        ' <button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="spread" data-pick="' + (pHome >= 0.5 ? "home" : "away") + '" data-p="' + p + '">＋ Parier</button></span>');
     }
     if (typeof o.total === "number") {
       var pOver = 1 - normCdf((o.total - total) / TOTAL_SD);
       var tside = pOver >= 0.5 ? "Over " + o.total : "Under " + o.total;
       var tp = Math.max(pOver, 1 - pOver);
-      out.push('<span class="mkt">Total : <b>' + tside + "</b> à " + pct(tp) + " · " + verdict(tp, STD_DEC) + "</span>");
+      out.push('<span class="mkt">Total : <b>' + tside + "</b> à " + pct(tp) + " · " + verdict(tp, STD_DEC) +
+        ' <button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="total" data-pick="' + (pOver >= 0.5 ? "over" : "under") + '" data-p="' + tp + '">＋ Parier</button></span>');
     }
     return out.length ? out.join("") + '<span class="mkt">(écart et total calculés à une cote de -110)</span>' : "";
   }
@@ -276,6 +306,7 @@
           '" value="' + esc(val) + '"></label>' +
         '<span class="src" data-src="' + esc(id) + '">' + sourceHtml(id, val, !!bookDec, provider) + "</span>" +
         '<span class="ev" data-for="' + esc(id) + '">' + verdict(p, dec) + "</span>" +
+        '<button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="ml" data-pick="' + key + '" data-p="' + p + '" data-odds-from="' + esc(id) + '">＋ Parier</button>' +
       "</div></div>";
   }
 
@@ -298,7 +329,7 @@
         if (typeof o.spread === "number") bits.push("écart " + esc(h.info.abbr) + " " + (o.spread > 0 ? "+" : "") + o.spread);
         if (typeof o.total === "number") bits.push("total " + o.total);
         if (bits.length) foot += "<br>Ligne " + esc(o.provider || "du book") + " : " + bits.join(" · ");
-        foot += marketsHtml(h, a, pr, o);
+        foot += marketsHtml(g, h, a, pr, o);
       }
       var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
       return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
@@ -374,11 +405,20 @@
       (bankroll || "") + '"> <span>Mise suggérée : ¼ Kelly, max 3 % de la bankroll, seulement sur « ça vaut le coup ».</span></label>';
   }
 
-  app.innerHTML = stale +
+  app.innerHTML =
+    '<nav class="menu">' +
+      '<button type="button" data-view="matchs">Matchs</button>' +
+      '<button type="button" data-view="paris">Nos paris<span class="count" id="betCount"></span></button>' +
+      '<button type="button" data-view="equipes">Équipes</button>' +
+    "</nav>" +
+    '<section class="view" id="view-matchs">' + stale +
     "<h2>Matchs à venir</h2>" +
     '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.</div>' +
     bankHtml() +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
+    "</section>" +
+    '<section class="view" id="view-paris"></section>' +
+    '<section class="view" id="view-equipes">' +
     "<h2>Équipes</h2>" +
     '<div id="table">' + tableHtml() + "</div>" +
     "<details><summary>Comment les projections sont calculées</summary>" +
@@ -392,7 +432,218 @@
     " %, la page dit « ça vaut le coup » ; au-delà de +" + Math.round(EV_SUSPECT * 100) + " %, elle dit « suspect » : un vrai avantage contre le book dépasse rarement quelques pour cent. " +
     "Écart : probabilité de couvrir = écart projeté contre la ligne, écart-type " + MARGIN_SD + " pts. Total : écart-type " + TOTAL_SD + " pts. Les deux supposent une cote de -110 (1.91). " +
     "Mise = ¼ de Kelly, plafonnée à " + Math.round(MAX_STAKE * 100) + " % de la bankroll. Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
-    "</details>";
+    "</details></section>" +
+    '<div class="modal" id="betModal" hidden><form id="betForm">' +
+      '<h3 id="bmTitle"></h3>' +
+      '<label>Pari <select id="bmPick"></select></label>' +
+      '<div class="row"><label id="bmLineWrap">Ligne <input id="bmLine" type="number" step="0.5" inputmode="decimal"></label>' +
+      '<label>Cote décimale <input id="bmOdds" type="number" step="0.01" min="1.01" inputmode="decimal" required></label></div>' +
+      '<div class="row"><label>Mise ($) <input id="bmStake" type="number" step="1" min="0.01" inputmode="decimal" required></label>' +
+      '<label>Parieur <input id="bmWho" list="whoList" placeholder="Cyric, Will…" required></label></div>' +
+      '<datalist id="whoList"><option value="Cyric"><option value="Will"></datalist>' +
+      '<div class="actions"><button type="button" class="btn" id="bmCancel">Annuler</button><button type="submit" class="btn main">Ajouter</button></div>' +
+    "</form></div>";
+
+  // ================= Nos paris =================
+  var BETS_KEY = "paris-stats-bets";
+  var bets = [];
+  try { bets = JSON.parse(localStorage.getItem(BETS_KEY) || "[]"); if (!Array.isArray(bets)) bets = []; } catch (e) { bets = []; }
+  function saveBets() { try { localStorage.setItem(BETS_KEY, JSON.stringify(bets)); } catch (e) {} }
+
+  var gameById = {}, upcomingById = {};
+  data.games.forEach(function (g) { gameById[g.id] = g; });
+  (data.upcoming || []).forEach(function (g) { upcomingById[g.id] = g; });
+
+  // Cote de fermeture : dernière cote vue avant le début du match.
+  (function () {
+    var now = Date.now(), changed = false;
+    bets.forEach(function (b) {
+      var u = upcomingById[b.gameId];
+      if (!u || !u.odds || new Date(u.date).getTime() <= now) return;
+      if (b.market === "ml") {
+        var d = americanToDecimal(b.pick === "home" ? u.odds.homeMoneyline : u.odds.awayMoneyline);
+        if (d && d !== b.closeOdds) { b.closeOdds = d; changed = true; }
+      } else if (b.market === "spread" && typeof u.odds.spread === "number" && u.odds.spread !== b.closeLine) { b.closeLine = u.odds.spread; changed = true; }
+      else if (b.market === "total" && typeof u.odds.total === "number" && u.odds.total !== b.closeLine) { b.closeLine = u.odds.total; changed = true; }
+    });
+    if (changed) saveBets();
+  })();
+
+  function abbr(id) { return teams[id] ? teams[id].info.abbr : "?"; }
+  function sideLine(x) { return (x > 0 ? "+" : "") + x; }
+
+  // b.line : écart du point de vue du domicile, ou total.
+  function betLabel(b) {
+    if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
+    if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
+    return (b.pick === "over" ? "Over " : "Under ") + b.line;
+  }
+
+  function betResult(b) {
+    var g = gameById[b.gameId];
+    if (!g) return null;
+    var m = g.homeScore - g.awayScore, x;
+    if (b.market === "ml") x = (b.pick === "home") === (m > 0) ? 1 : -1;
+    else if (b.market === "spread") { x = m + b.line; if (b.pick === "away") x = -x; }
+    else { x = g.homeScore + g.awayScore - b.line; if (b.pick === "under") x = -x; }
+    return x > 0 ? "W" : x < 0 ? "L" : "P";
+  }
+  function betProfit(b, r) { return r === "W" ? b.stake * (b.odds - 1) : r === "L" ? -b.stake : r === "P" ? 0 : null; }
+
+  // CLV : positif = on a eu mieux que la ligne de fermeture.
+  function betClv(b) {
+    if (b.market === "ml") if (!b.closeOdds) return null;
+      var cv = b.odds / b.closeOdds - 1;
+      return { v: cv, txt: (cv > 0 ? "+" : "") + (cv * 100).toFixed(1) + " %" };
+    if (typeof b.closeLine !== "number") return null;
+    var d = b.market === "spread" ? (b.pick === "home" ? b.line - b.closeLine : b.closeLine - b.line)
+                                  : (b.pick === "over" ? b.closeLine - b.line : b.line - b.closeLine);
+    return { v: d, txt: (d > 0 ? "+" : "") + d + " pt" };
+  }
+
+  var whoFilter = "Tous";
+  var shortDate = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short" });
+
+  function betsHtml() {
+    var whos = ["Tous"].concat(bets.map(function (b) { return b.who; }).filter(function (w, i, a) { return w && a.indexOf(w) === i; }));
+    if (whos.indexOf(whoFilter) < 0) whoFilter = "Tous";
+    var list = bets.filter(function (b) { return whoFilter === "Tous" || b.who === whoFilter; })
+      .slice().sort(function (x, y) { return new Date(y.date) - new Date(x.date); });
+    var w = 0, l = 0, pu = 0, staked = 0, profit = 0, pend = 0, clvSum = 0, clvN = 0;
+    list.forEach(function (b) {
+      var r = betResult(b);
+      if (!r) { pend++; return; }
+      if (r === "W") w++; else if (r === "L") l++; else pu++;
+      staked += b.stake; profit += betProfit(b, r);
+      var c = betClv(b); if (c && b.market === "ml") { clvSum += c.v; clvN++; }
+    });
+    var roi = staked ? profit / staked : 0;
+    var kpi = function (lab, val, cls) { return '<div class="kpi"><div class="l">' + lab + '</div><div class="v num ' + (cls || "") + '">' + val + "</div></div>"; };
+    var head = "<h2>Nos paris</h2>" +
+      '<div class="basis">Parieur : ' + whos.map(function (x) {
+        return '<button type="button" data-who="' + esc(x) + '"' + (x === whoFilter ? ' class="on"' : "") + ">" + esc(x) + "</button>";
+      }).join("") + "</div>" +
+      '<div class="kpis">' +
+        kpi("Fiche", w + "-" + l + (pu ? "-" + pu : "")) +
+        kpi("% gagnés", (w + l ? (w / (w + l) * 100).toFixed(1) : "0") + " %") +
+        kpi("Misé (réglés)", staked.toFixed(0) + " $") +
+        kpi("Profit", (profit > 0 ? "+" : "") + profit.toFixed(2) + " $", profit > 0 ? "pos" : profit < 0 ? "neg" : "") +
+        kpi("ROI", (roi > 0 ? "+" : "") + (roi * 100).toFixed(1) + " %", roi > 0 ? "pos" : roi < 0 ? "neg" : "") +
+        kpi("CLV moyen (moneyline)", clvN ? ((clvSum / clvN > 0 ? "+" : "") + (clvSum / clvN * 100).toFixed(1) + " %") : "—", clvN ? (clvSum > 0 ? "pos" : "neg") : "") +
+        kpi("En attente", pend) +
+      "</div>";
+    var table;
+    if (!list.length) {
+      table = '<div class="empty">Aucun pari. Dans <b>Matchs</b>, clique « ＋ Parier » à côté d\'un choix pour l\'ajouter ici. Le résultat se calcule tout seul quand le match est terminé.</div>';
+    } else {
+      table = '<div class="scroll"><table><thead><tr><th>Date</th><th>Match</th><th>Pari</th><th>Parieur</th><th>Cote</th><th>Mise</th><th>Modèle</th><th>Résultat</th><th>Profit</th><th>CLV</th><th></th></tr></thead><tbody>' +
+        list.map(function (b) {
+          var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
+          var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (g ? ' <small class="sub">' + g.awayScore + "-" + g.homeScore + "</small>" : "")
+                      : '<span class="res-pending">En attente</span>';
+          return "<tr>" +
+            "<td>" + esc(shortDate.format(new Date(b.date))) + "</td>" +
+            "<td>" + esc(abbr(b.awayId)) + " @ " + esc(abbr(b.homeId)) + "</td>" +
+            "<td><b>" + esc(betLabel(b)) + "</b></td>" +
+            "<td>" + esc(b.who || "") + "</td>" +
+            '<td class="num">' + b.odds.toFixed(2) + "</td>" +
+            '<td class="num">' + b.stake.toFixed(2) + " $</td>" +
+            '<td class="num">' + (b.p ? pct(b.p) : "") + "</td>" +
+            "<td>" + res + "</td>" +
+            '<td class="num ' + (pr > 0 ? "pos" : pr < 0 ? "neg" : "") + '">' + (pr === null ? "" : (pr > 0 ? "+" : "") + pr.toFixed(2) + " $") + "</td>" +
+            '<td class="num ' + (c ? (c.v > 0 ? "pos" : c.v < 0 ? "neg" : "") : "") + '">' + (c ? esc(c.txt) : "") + "</td>" +
+            '<td><button type="button" class="del" data-del="' + esc(b.id) + '" title="Supprimer">✕</button></td>' +
+          "</tr>";
+        }).join("") + "</tbody></table></div>";
+    }
+    var tools = '<div class="tools"><button type="button" class="btn" id="betExport">Copier nos paris</button>' +
+      '<button type="button" class="btn" id="betImportOpen">Importer des paris</button><span class="sub" id="betMsg"></span></div>' +
+      '<div class="tools" id="betImportBox" hidden><textarea id="betImportTxt" placeholder="Colle ici le texte copié par « Copier nos paris » sur l\'autre téléphone"></textarea>' +
+      '<button type="button" class="btn main" id="betImport">Ajouter ces paris</button></div>' +
+      '<p class="sub">Les paris sont gardés dans ce navigateur. Pour les partager entre vous deux : « Copier nos paris » sur un téléphone, puis « Importer des paris » sur l\'autre (les doublons sont ignorés). ' +
+      "CLV = cote prise comparée à la dernière cote vue avant le match. Positif de façon régulière = le modèle trouve de la vraie valeur.</p>";
+    return head + table + tools;
+  }
+
+  function renderBets() {
+    document.getElementById("view-paris").innerHTML = betsHtml();
+    var pending = bets.filter(function (b) { return !betResult(b); }).length;
+    document.getElementById("betCount").textContent = bets.length ? "(" + bets.length + (pending ? ", " + pending + " en attente" : "") + ")" : "";
+  }
+
+  // ---- Menu ----
+  var VIEW_KEY = "paris-stats-view";
+  var view = "matchs";
+  try { view = localStorage.getItem(VIEW_KEY) || "matchs"; } catch (e) {}
+  function showView(v) {
+    view = ["matchs", "paris", "equipes"].indexOf(v) >= 0 ? v : "matchs";
+    ["matchs", "paris", "equipes"].forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
+    app.querySelectorAll("nav.menu button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-view") === view); });
+    try { localStorage.setItem(VIEW_KEY, view); } catch (e) {}
+  }
+  renderBets();
+  showView(view);
+
+  // ---- Formulaire d'ajout ----
+  var modal = document.getElementById("betModal"), draft = null;
+  var whoLast = "";
+  try { whoLast = localStorage.getItem("paris-stats-who") || ""; } catch (e) {}
+
+  function openBet(btn) {
+    var g = upcomingById[btn.getAttribute("data-g")];
+    if (!g) return;
+    var m = btn.getAttribute("data-m"), pick = btn.getAttribute("data-pick"), o = g.odds || {};
+    var h = abbr(g.homeId), a = abbr(g.awayId);
+    draft = { gameId: g.id, date: g.date, homeId: g.homeId, awayId: g.awayId, market: m, p: parseFloat(btn.getAttribute("data-p")) || null };
+    var sel = document.getElementById("bmPick"), opts;
+    if (m === "ml") opts = [["away", a + " gagne"], ["home", h + " gagne"]];
+    else if (m === "spread") opts = [["home", h + " (ligne domicile)"], ["away", a + " (ligne visiteur)"]];
+    else opts = [["over", "Over"], ["under", "Under"]];
+    sel.innerHTML = opts.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === pick ? " selected" : "") + ">" + esc(x[1]) + "</option>"; }).join("");
+    document.getElementById("bmTitle").textContent = a + " @ " + h + " · " + { ml: "Moneyline", spread: "Écart", total: "Total" }[m];
+    var lineWrap = document.getElementById("bmLineWrap"), lineIn = document.getElementById("bmLine");
+    lineWrap.hidden = m === "ml";
+    if (m === "spread") lineIn.value = typeof o.spread === "number" ? (pick === "home" ? o.spread : -o.spread) : "";
+    else if (m === "total") lineIn.value = typeof o.total === "number" ? o.total : "";
+    var odds = STD_DEC;
+    if (m === "ml") {
+      var inp = app.querySelector('input.odds[data-id="' + btn.getAttribute("data-odds-from") + '"]');
+      odds = inp && parseFloat(inp.value) > 1 ? parseFloat(inp.value) : NaN;
+    }
+    document.getElementById("bmOdds").value = isFinite(odds) ? odds.toFixed(2) : "";
+    var dec = parseFloat(document.getElementById("bmOdds").value), stake = "";
+    if (bankroll > 0 && draft.p && dec > 1) {
+      var b = dec - 1, f = Math.min((b * draft.p - (1 - draft.p)) / b * KELLY_FRAC, MAX_STAKE);
+      if (f > 0) stake = Math.max(1, Math.round(f * bankroll));
+    }
+    document.getElementById("bmStake").value = stake;
+    document.getElementById("bmWho").value = whoLast;
+    modal.hidden = false;
+    document.getElementById("bmOdds").focus();
+  }
+
+  document.getElementById("bmPick").addEventListener("change", function () {
+    if (draft && draft.market === "spread") { var li = document.getElementById("bmLine"); if (li.value !== "") li.value = -parseFloat(li.value); }
+  });
+  document.getElementById("bmCancel").addEventListener("click", function () { modal.hidden = true; });
+  modal.addEventListener("click", function (e) { if (e.target === modal) modal.hidden = true; });
+  document.getElementById("betForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var pick = document.getElementById("bmPick").value;
+    var odds = parseFloat(document.getElementById("bmOdds").value), stake = parseFloat(document.getElementById("bmStake").value);
+    var who = document.getElementById("bmWho").value.trim();
+    if (!(odds > 1) || !(stake > 0) || !who) return;
+    var b = Object.assign({}, draft, { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), pick: pick, odds: odds, stake: stake, who: who, createdAt: new Date().toISOString() });
+    if (b.market !== "ml") {
+      var lv = parseFloat(document.getElementById("bmLine").value);
+      if (!isFinite(lv)) return;
+      b.line = b.market === "spread" ? (pick === "home" ? lv : -lv) : lv;
+    }
+    bets.push(b); saveBets();
+    whoLast = who; try { localStorage.setItem("paris-stats-who", who); } catch (err) {}
+    modal.hidden = true;
+    renderBets();
+  });
 
   app.addEventListener("input", function (e) {
     var el = e.target;
@@ -418,6 +669,40 @@
   }
 
   app.addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target : null;
+    if (!t) return;
+    var nv = t.closest("nav.menu button[data-view]");
+    if (nv) { showView(nv.getAttribute("data-view")); return; }
+    var ab = t.closest("button.addbet");
+    if (ab) { openBet(ab); return; }
+    var wb = t.closest("button[data-who]");
+    if (wb) { whoFilter = wb.getAttribute("data-who"); renderBets(); return; }
+    var del = t.closest("button[data-del]");
+    if (del) {
+      var did = del.getAttribute("data-del");
+      if (del.getAttribute("data-confirm") !== "1") { del.setAttribute("data-confirm", "1"); del.textContent = "Supprimer ?"; return; }
+      bets = bets.filter(function (b) { return b.id !== did; }); saveBets(); renderBets(); return;
+    }
+    if (t.closest("#betExport")) {
+      var txt = JSON.stringify(bets);
+      var msg = document.getElementById("betMsg");
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { msg.textContent = bets.length + " paris copiés."; }, function () { msg.textContent = "Copie refusée par le navigateur."; });
+      return;
+    }
+    if (t.closest("#betImportOpen")) { document.getElementById("betImportBox").hidden = false; return; }
+    if (t.closest("#betImport")) {
+      var m2 = document.getElementById("betMsg"), arr;
+      try { arr = JSON.parse(document.getElementById("betImportTxt").value); } catch (err) { m2.textContent = "Texte invalide."; return; }
+      if (!Array.isArray(arr)) { m2.textContent = "Texte invalide."; return; }
+      var have = {}; bets.forEach(function (b) { have[b.id] = true; });
+      var added = 0;
+      arr.forEach(function (b) {
+        if (b && b.id && !have[b.id] && b.gameId && ["ml", "spread", "total"].indexOf(b.market) >= 0 && b.odds > 1 && b.stake > 0) { bets.push(b); have[b.id] = true; added++; }
+      });
+      saveBets(); renderBets();
+      document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";
+      return;
+    }
     var reset = e.target.closest ? e.target.closest("button[data-reset]") : null;
     if (reset) {
       var rid = reset.getAttribute("data-reset");
