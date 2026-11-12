@@ -164,6 +164,7 @@
 <script src="data.js"></script>
 <script src="players.js"></script>
 <script src="h2h.js"></script>
+<script src="h2hbox.js"></script>
 <script>
 (function () {
   "use strict";
@@ -183,10 +184,10 @@
   var MAX_STAKE = 0.03;
   // Stats des joueurs : colonne dans players.js, plancher de l'écart-type, ajustement par la défense adverse.
   var STATS = {
-    pts: { i: 6, label: "Points", short: "pts", floor: 4, opp: true },
-    reb: { i: 7, label: "Rebonds", short: "reb", floor: 2 },
-    ast: { i: 8, label: "Passes", short: "passes", floor: 1.5 },
-    tpm: { i: 9, label: "Paniers à 3 pts", short: "3 pts", floor: 1 }
+    pts: { i: 6, b: 3, label: "Points", short: "pts", floor: 4, opp: true },
+    reb: { i: 7, b: 4, label: "Rebonds", short: "reb", floor: 2 },
+    ast: { i: 8, b: 5, label: "Passes", short: "passes", floor: 1.5 },
+    tpm: { i: 9, b: 6, label: "Paniers à 3 pts", short: "3 pts", floor: 1 }
   };    // jamais plus de 3 % de la bankroll sur un pari
 
   var data = window.NBA_DATA;
@@ -399,11 +400,15 @@
     if (!list.length) return "";
     list.sort(function (x, y) { return y.d.localeCompare(x.d); });
     list = list.slice(0, 10);
-    var hw = 0, tot = 0;
-    list.forEach(function (x) { var hWon = (x.home === hid) === (x.hs > x.as); if (hWon) hw++; tot += x.hs + x.as; });
-    var lead = hw >= list.length - hw ? [h, hw, list.length - hw] : [a, list.length - hw, hw];
-    return '<span class="info">Face-à-face (' + (list.length > 1 ? list.length + " derniers" : "dernier") + ", depuis " + esc(list[list.length - 1].d.slice(0, 4)) + ") : <b>" + esc(lead[0].info.abbr) + " " + lead[1] + "-" + lead[2] +
-      "</b> · total moyen " + f1(tot / list.length) + "</span>";
+    var hw = 0, tot = 0, hp = 0, ap = 0;
+    list.forEach(function (x) {
+      var hWon = (x.home === hid) === (x.hs > x.as); if (hWon) hw++; tot += x.hs + x.as;
+      if (x.home === hid) { hp += x.hs; ap += x.as; } else { hp += x.as; ap += x.hs; }
+    });
+    var n = list.length;
+    var lead = hw >= n - hw ? [h, hw, n - hw] : [a, n - hw, hw];
+    return '<span class="info">Face-à-face (' + (n > 1 ? n + " derniers" : "dernier") + ", depuis " + esc(list[n - 1].d.slice(0, 4)) + ") : <b>" + esc(lead[0].info.abbr) + " " + lead[1] + "-" + lead[2] +
+      "</b> · moyenne " + esc(a.info.abbr) + " " + f1(ap / n) + " pts, " + esc(h.info.abbr) + " " + f1(hp / n) + " pts · total moyen " + f1(tot / n) + "</span>";
   }
   function injHtml(g) {
     if (!PL || !PL.injuries) return "";
@@ -713,7 +718,22 @@
     try { localStorage.setItem(PL_KEY, JSON.stringify(plLines)); } catch (e) {}
   })();
   function plKey(gid, pid, st) { return gid + ":" + pid + ":" + st; }
-  var plGame = null, plStat = "pts", plInfo = {};
+  var plGame = null, plStat = "pts", plInfo = {}, plVsN = 5;
+  var HBOX = window.NBA_H2H_BOX && window.NBA_H2H_BOX.games ? window.NBA_H2H_BOX.games : {};
+  // Valeurs de la stat du joueur dans ses derniers matchs contre cet adversaire (saison en cours + saisons passées).
+  function vsOpp(pid, p, oppId) {
+    var st = STATS[plStat], out = [];
+    p.g.forEach(function (r) { if (r[3] === oppId) out.push({ d: r[1], v: r[st.i] }); });
+    Object.keys(HBOX).forEach(function (gid) {
+      var g = HBOX[gid];
+      if (g.h !== oppId && g.a !== oppId) return;
+      for (var i = 0; i < g.r.length; i++) {
+        var row = g.r[i];
+        if (row[0] === pid && row[1] !== oppId) { out.push({ d: g.d, v: row[st.b] }); break; }
+      }
+    });
+    return out.sort(function (x, y) { return y.d.localeCompare(x.d); }).slice(0, plVsN).map(function (x) { return x.v; });
+  }
 
   function plRows(g, teamId, oppId) {
     var st = STATS[plStat];
@@ -728,7 +748,7 @@
       var season = avg(vals), last5 = avg(vals.slice(-5)), min5 = avg(mins.slice(-5));
       var sd = Math.sqrt(avg(vals.map(function (v) { return (v - season) * (v - season); })) * vals.length / Math.max(1, vals.length - 1));
       var proj = (0.6 * season + 0.4 * last5) * oppF;
-      rows.push({ pid: pid, p: p, season: season, last5: last5, min5: min5, sd: Math.max(sd, st.floor), proj: proj, last10: vals.slice(-10), inj: injuryOf(teamId, pid), gid: g.id, oppF: oppF });
+      rows.push({ pid: pid, p: p, season: season, last5: last5, min5: min5, sd: Math.max(sd, st.floor), proj: proj, last10: vals.slice(-10), inj: injuryOf(teamId, pid), gid: g.id, oppF: oppF, vs: vsOpp(pid, p, oppId) });
     });
     return rows.sort(function (x, y) { return y.proj - x.proj; });
   }
@@ -736,14 +756,16 @@
   function plResultHtml(info) {
     var L = plLines[info.key] || {};
     var line = parseFloat(L.l);
-    if (!isFinite(line)) return { hit: "", pct: "", val: '<span class="sub">entre la ligne</span>' };
+    if (!isFinite(line)) return { hit: "", vsHit: "", pct: "", val: '<span class="sub">entre la ligne</span>' };
     var pOver = 1 - normCdf((line - info.proj) / info.sd);
     var hits = info.last10.filter(function (v) { return v > line; }).length;
     var oO = parseFloat(L.o) > 1 ? parseFloat(L.o) : STD_DEC, oU = parseFloat(L.u) > 1 ? parseFloat(L.u) : STD_DEC;
     var evO = pOver * oO - 1, evU = (1 - pOver) * oU - 1;
     var over = evO >= evU, best = over ? "over" : "under";
+    var vsHits = info.vs.filter(function (v) { return v > line; }).length;
     return {
       hit: hits + "/" + info.last10.length,
+      vsHit: info.vs.length ? vsHits + "/" + info.vs.length : "",
       pct: pct(pOver),
       val: (over ? "Over " : "Under ") + verdict(over ? pOver : 1 - pOver, over ? oO : oU) +
         " " + betBtn('data-g="' + esc(info.gid) + '" data-m="prop" data-pid="' + esc(info.pid) + '" data-stat="' + plStat +
@@ -763,30 +785,33 @@
       '<div class="plsel"><select id="plGame">' + list.map(function (x) {
         return '<option value="' + esc(x.id) + '"' + (x.id === plGame ? " selected" : "") + ">" + esc(abbr(x.awayId) + " @ " + abbr(x.homeId) + " · " + fmt.format(new Date(x.date))) + "</option>";
       }).join("") + "</select>" +
-      '<select id="plStat">' + Object.keys(STATS).map(function (k) { return '<option value="' + k + '"' + (k === plStat ? " selected" : "") + ">" + STATS[k].label + "</option>"; }).join("") + "</select></div>" +
-      '<div class="sub">Entre la ligne du book (ex. 22.5) et ses cotes Over/Under (1.91 par défaut). « 10 dern. » = nombre de matchs au-dessus de la ligne sur les 10 derniers.</div>';
+      '<select id="plStat">' + Object.keys(STATS).map(function (k) { return '<option value="' + k + '"' + (k === plStat ? " selected" : "") + ">" + STATS[k].label + "</option>"; }).join("") + "</select>" +
+      '<select id="plVsN"><option value="5"' + (plVsN === 5 ? " selected" : "") + '>Face-à-face : 5 derniers</option><option value="10"' + (plVsN === 10 ? " selected" : "") + ">Face-à-face : 10 derniers</option></select></div>" +
+      '<div class="sub">Entre la ligne du book (ex. 22.5) et ses cotes Over/Under (1.91 par défaut). « 10 dern. » = nombre de matchs au-dessus de la ligne sur les 10 derniers. « vs ADV » = moyenne du joueur dans ses derniers matchs contre cet adversaire (cette saison et les 2 précédentes, nombre de matchs entre parenthèses), puis combien de ces matchs sont au-dessus de la ligne.</div>';
     plInfo = {};
     var body = [[g.awayId, g.homeId], [g.homeId, g.awayId]].map(function (pair) {
       var rows = plRows(g, pair[0], pair[1]);
       if (!rows.length) return "<h2>" + esc(abbr(pair[0])) + "</h2><div class=\"empty\">Pas assez de matchs joués.</div>";
       var oppTxt = STATS[plStat].opp ? " · défense " + esc(abbr(pair[1])) + " : " + (rows[0].oppF >= 1 ? "+" : "") + ((rows[0].oppF - 1) * 100).toFixed(1) + " % de points accordés vs la ligue" : "";
       return "<h2>" + esc(teams[pair[0]].info.name) + '<span class="sub">' + oppTxt + "</span></h2>" +
-        '<div class="scroll"><table class="pl"><thead><tr><th>Joueur</th><th>Min (5)</th><th>Saison</th><th>5 dern.</th><th>Proj.</th><th>Ligne</th><th>Cote O</th><th>Cote U</th><th>10 dern.</th><th>Over</th><th>Valeur</th></tr></thead><tbody>' +
+        '<div class="scroll"><table class="pl"><thead><tr><th>Joueur</th><th>Min (5)</th><th>Saison</th><th>5 dern.</th><th>vs ' + esc(abbr(pair[1])) + '</th><th>Proj.</th><th>Ligne</th><th>Cote O</th><th>Cote U</th><th>10 dern.</th><th>vs ' + esc(abbr(pair[1])) + '</th><th>Over</th><th>Valeur</th></tr></thead><tbody>' +
         rows.map(function (r) {
           var key = plKey(g.id, r.pid, plStat), L = plLines[key] || {};
-          var info = { key: key, proj: r.proj, sd: r.sd, last10: r.last10, gid: g.id, pid: r.pid };
+          var info = { key: key, proj: r.proj, sd: r.sd, last10: r.last10, vs: r.vs, gid: g.id, pid: r.pid };
           plInfo[key] = info;
           var out = r.inj && (r.inj.s === "Out" || r.inj.s === "Suspension");
-          var res = out ? { hit: "", pct: "", val: '<span class="sub">absent</span>' } : plResultHtml(info);
+          var res = out ? { hit: "", vsHit: "", pct: "", val: '<span class="sub">absent</span>' } : plResultHtml(info);
           var inp = function (f, ph) { return '<input class="plin num" type="number" inputmode="decimal" step="' + (f === "l" ? "0.5" : "0.01") + '" data-k="' + esc(key) + '" data-f="' + f + '" placeholder="' + ph + '" value="' + esc(L[f] || "") + '">'; };
           return '<tr' + (out ? ' class="out"' : "") + ">" +
             '<td class="pname"><b>' + esc(r.p.n) + "</b> <small>" + esc(r.p.pos) + "</small>" + statusTag(r.inj) + "</td>" +
             '<td class="num">' + f1(r.min5) + "</td>" +
             '<td class="num">' + f1(r.season) + "</td>" +
             '<td class="num">' + f1(r.last5) + "</td>" +
+            '<td class="num" title="Moyenne dans ses ' + r.vs.length + ' derniers matchs contre cet adversaire">' + (r.vs.length ? f1(avg(r.vs)) + ' <small class="sub">(' + r.vs.length + ")</small>" : '<span class="sub">—</span>') + "</td>" +
             '<td class="num"><b>' + f1(r.proj) + "</b></td>" +
             "<td>" + inp("l", "") + "</td><td>" + inp("o", "1.91") + "</td><td>" + inp("u", "1.91") + "</td>" +
             '<td class="num" data-r="hit" data-k="' + esc(key) + '">' + res.hit + "</td>" +
+            '<td class="num" data-r="vsHit" data-k="' + esc(key) + '">' + res.vsHit + "</td>" +
             '<td class="num" data-r="pct" data-k="' + esc(key) + '">' + res.pct + "</td>" +
             '<td data-r="val" data-k="' + esc(key) + '">' + res.val + "</td></tr>";
         }).join("") + "</tbody></table></div>";
@@ -801,6 +826,7 @@
   app.addEventListener("change", function (e) {
     if (e.target.id === "plGame") { plGame = e.target.value; renderPlayers(); }
     else if (e.target.id === "plStat") { plStat = e.target.value; renderPlayers(); }
+    else if (e.target.id === "plVsN") { plVsN = parseInt(e.target.value, 10) || 5; renderPlayers(); }
   });
   app.addEventListener("input", function (e) {
     var el = e.target;
@@ -813,7 +839,7 @@
     var info = plInfo[k];
     if (!info) return;
     var res = plResultHtml(info);
-    ["hit", "pct", "val"].forEach(function (r) {
+    ["hit", "vsHit", "pct", "val"].forEach(function (r) {
       var cell = app.querySelector('td[data-r="' + r + '"][data-k="' + k + '"]');
       if (cell) cell.innerHTML = res[r];
     });

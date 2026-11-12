@@ -35,11 +35,11 @@ async function saveVar(file, name, value) {
 
 const int = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
 
-// Ajoute les lignes de stats d'un match. Ligne : [gameId, date, équipe, adversaire, domicile, min, pts, reb, ast, 3pts]
-export function parseBox(summary, game, store) {
+// Lit toutes les lignes de joueurs d'une feuille de match ESPN.
+export function parseRows(summary, game) {
   const blocks = summary?.boxscore?.players;
   if (!Array.isArray(blocks) || blocks.length !== 2) throw new Error(`Feuille de match incomplète pour ${game.id}`);
-  let rows = 0;
+  const out = [];
   for (const block of blocks) {
     const teamId = String(block.team?.id);
     if (teamId !== game.homeId && teamId !== game.awayId) throw new Error(`Équipe inattendue ${teamId} dans ${game.id}`);
@@ -54,17 +54,25 @@ export function parseBox(summary, game, store) {
       if (a.didNotPlay || !Array.isArray(s) || !s.length || !a.athlete?.id) continue;
       const min = int(s[iMin]);
       if (min <= 0) continue;
-      const id = String(a.athlete.id);
-      const p = store.players[id] || (store.players[id] = { n: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', g: [] });
-      p.n = a.athlete.displayName || p.n;
-      if (p.g.some(r => r[0] === game.id)) continue;
-      const home = teamId === game.homeId;
-      p.g.push([game.id, game.date.slice(0, 10), teamId, home ? game.awayId : game.homeId, home ? 1 : 0, min, int(s[iPts]), int(s[iReb]), int(s[iAst]), int(String(s[i3]).split('-')[0])]);
-      rows++;
+      out.push({ id: String(a.athlete.id), n: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', teamId, min,
+        pts: int(s[iPts]), reb: int(s[iReb]), ast: int(s[iAst]), tpm: int(String(s[i3]).split('-')[0]) });
     }
   }
-  if (rows < 10) throw new Error(`Seulement ${rows} joueurs lus dans ${game.id}`);
-  return rows;
+  if (out.length < 10) throw new Error(`Seulement ${out.length} joueurs lus dans ${game.id}`);
+  return out;
+}
+
+// Ajoute les lignes de stats d'un match. Ligne : [gameId, date, équipe, adversaire, domicile, min, pts, reb, ast, 3pts]
+export function parseBox(summary, game, store) {
+  const rows = parseRows(summary, game);
+  for (const r of rows) {
+    const p = store.players[r.id] || (store.players[r.id] = { n: r.n, pos: r.pos, g: [] });
+    p.n = r.n || p.n;
+    if (p.g.some(x => x[0] === game.id)) continue;
+    const home = r.teamId === game.homeId;
+    p.g.push([game.id, game.date.slice(0, 10), r.teamId, home ? game.awayId : game.homeId, home ? 1 : 0, r.min, r.pts, r.reb, r.ast, r.tpm]);
+  }
+  return rows.length;
 }
 
 export function parseInjuries(json) {
@@ -132,6 +140,27 @@ async function main() {
     await saveVar('h2h.js', 'NBA_H2H', { seasons: PAST_SEASONS.join(','), games: [...games.values()].sort((x, y) => x[1].localeCompare(y[1])) });
     console.log(`h2h.js : ${games.size} matchs des saisons ${PAST_SEASONS.join(', ')}.`);
   }
+  // 4. Feuilles de match des face-à-face passés pour les matchs à venir (stats des joueurs contre cet adversaire).
+  //    Les matchs passés ne changent plus : chaque feuille n'est téléchargée qu'une fois.
+  const past = (await loadVar('h2h.js'))?.games || [];
+  const box = (await loadVar('h2hbox.js')) || { games: {} };
+  const want = new Set();
+  for (const u of data.upcoming || []) {
+    past.filter(r => (r[2] === u.homeId && r[3] === u.awayId) || (r[2] === u.awayId && r[3] === u.homeId))
+      .sort((x, y) => y[1].localeCompare(x[1])).slice(0, 10)
+      .forEach(r => { if (!box.games[r[0]]) want.add(r); });
+  }
+  let boxAdded = 0;
+  for (const r of [...want].slice(0, 400)) {
+    const game = { id: r[0], date: r[1], homeId: r[2], awayId: r[3] };
+    try {
+      const rows = parseRows(await get(`/summary?event=${game.id}`), game);
+      box.games[game.id] = { d: r[1], h: r[2], a: r[3], r: rows.map(x => [x.id, x.teamId, x.min, x.pts, x.reb, x.ast, x.tpm]) };
+      boxAdded++;
+    } catch (error) { console.warn(`Face-à-face ${game.id} : ${error.message}`); }
+  }
+  if (boxAdded) await saveVar('h2hbox.js', 'NBA_H2H_BOX', box);
+  console.log(`h2hbox.js : ${boxAdded} feuilles ajoutées, ${Object.keys(box.games).length} au total.`);
   console.log(`${requests} requêtes.`);
 }
 
