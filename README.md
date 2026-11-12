@@ -26,3 +26,9 @@ Le workflow GitHub Actions `.github/workflows/refresh-data.yml` lance `node fetc
 - `h2h.js` : matchs de saison régulière 2024-25 et 2025-26 (`/teams/ID/schedule?season=AAAA`), pour les face-à-face. Téléchargé une seule fois.
 
 Si ce script échoue, `data.js` est quand même publié et la page fonctionne sans l’onglet Joueurs.
+
+## Paris partagés (serveur)
+
+`server.mjs` est une petite API (Node, sans dépendance) déployée comme service web Render `paris-stats-api`. Elle garde les paris dans `bets.json` sur la branche `paris-data` du dépôt (pas `main`, pour ne pas redéployer le site à chaque pari). La page lit la liste sans code ; ajouter ou supprimer un pari demande le code d'équipe (`BETS_CODE`). Si le serveur ne répond pas, les paris restent dans le navigateur et sont envoyés à la prochaine synchro.
+
+Variables à définir dans Render : `GITHUB_TOKEN` (jeton GitHub fine-grained limité à ce dépôt, permission *Contents : Read and write*) et `BETS_CODE`.
