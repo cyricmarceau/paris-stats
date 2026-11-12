@@ -44,5 +44,20 @@
   "createdAt": "2026-11-12T04:27:44.752Z",
   "line": 220.5,
   "closeLine": 220.5
+ },
+ {
+  "id": "mwd1rn2gfb3z4",
+  "gameId": "401909978",
+  "date": "2026-11-13T01:00:00.000Z",
+  "homeId": "16",
+  "awayId": "6",
+  "market": "ml",
+  "pick": "away",
+  "odds": 2.64,
+  "stake": 40,
+  "who": "Cyric",
+  "p": 0.4257721513059902,
+  "createdAt": "2026-11-12T04:27:54.376Z",
+  "closeOdds": 2.6399999999999997
  }
 ]
