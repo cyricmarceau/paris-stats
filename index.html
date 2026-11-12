@@ -492,9 +492,11 @@
 
   // CLV : positif = on a eu mieux que la ligne de fermeture.
   function betClv(b) {
-    if (b.market === "ml") if (!b.closeOdds) return null;
+    if (b.market === "ml") {
+      if (!b.closeOdds) return null;
       var cv = b.odds / b.closeOdds - 1;
       return { v: cv, txt: (cv > 0 ? "+" : "") + (cv * 100).toFixed(1) + " %" };
+    }
     if (typeof b.closeLine !== "number") return null;
     var d = b.market === "spread" ? (b.pick === "home" ? b.line - b.closeLine : b.closeLine - b.line)
                                   : (b.pick === "over" ? b.closeLine - b.line : b.line - b.closeLine);
@@ -697,7 +699,7 @@
       var have = {}; bets.forEach(function (b) { have[b.id] = true; });
       var added = 0;
       arr.forEach(function (b) {
-        if (b && b.id && !have[b.id] && b.gameId && ["ml", "spread", "total"].indexOf(b.market) >= 0 && b.odds > 1 && b.stake > 0) { bets.push(b); have[b.id] = true; added++; }
+        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line))) { bets.push(b); have[b.id] = true; added++; }
       });
       saveBets(); renderBets();
       document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";
