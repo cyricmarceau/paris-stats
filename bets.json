@@ -12,5 +12,21 @@
   "who": "Cyric",
   "p": 0.3917532695606323,
   "createdAt": "2026-11-12T04:06:10.897Z"
+ },
+ {
+  "id": "mwd1q82yfkwck",
+  "gameId": "401909977",
+  "date": "2026-11-13T00:00:00.000Z",
+  "homeId": "27",
+  "awayId": "8",
+  "market": "total",
+  "pick": "over",
+  "odds": 1.91,
+  "stake": 50,
+  "who": "Cyric",
+  "p": 0.5855711312886132,
+  "createdAt": "2026-11-12T04:26:48.298Z",
+  "line": 220.5,
+  "closeLine": 220.5
  }
 ]
