@@ -81,8 +81,28 @@
   nav.menu button.on { background: var(--foreground, #e7eaf0); color: var(--background, #0f1218); }
   nav.menu .count { font-size: 11px; opacity: .7; margin-left: 4px; }
   .view[hidden] { display: none; }
-  button.addbet { font: inherit; font-size: 12px; padding: 2px 9px; cursor: pointer; border-radius: 6px; color: var(--foreground, #e7eaf0); background: none; border: 1px dashed var(--border, #3a4255); }
-  button.addbet:hover { border-style: solid; }
+  button.addbet { font: inherit; font-size: 13px; font-weight: 600; min-height: 32px; padding: 5px 13px; cursor: pointer; border-radius: 999px; color: var(--foreground, #e7eaf0); background: rgba(255,255,255,.07); border: 1px solid var(--border, #3a4255); white-space: nowrap; vertical-align: middle; }
+  button.addbet:hover { background: rgba(255,255,255,.14); }
+  button.addbet.hot { background: var(--success, #4ade80); color: #06240f; border-color: transparent; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+  .mhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .mhead .x { font: inherit; font-size: 18px; line-height: 1; background: none; border: 0; color: var(--muted-foreground, #97a0b3); cursor: pointer; padding: 2px 4px; }
+  .seg { display: flex; gap: 6px; }
+  .seg button, .chips button { font: inherit; font-weight: 600; cursor: pointer; border-radius: 999px; padding: 8px 12px; color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #3a4255); }
+  .seg button { flex: 1; border-radius: 10px; padding: 10px; }
+  .seg button.on, .chips button.on { background: var(--foreground, #e7eaf0); color: var(--background, #0f1218); border-color: transparent; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { padding: 6px 11px; font-size: 13px; }
+  .msum { font-size: 13px; padding: 9px 11px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid var(--border, #262c3a); }
+  .gain { font-size: 14px; }
+  .gain b { color: var(--success, #4ade80); }
+  .lbl { font-size: 12px; color: var(--muted-foreground, #97a0b3); }
+  .btn.big { padding: 11px 18px; font-size: 15px; flex: 1; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 30; background: var(--card, #171b25); border: 1px solid var(--success, #4ade80); border-radius: 12px; padding: 10px 14px; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 30px rgba(0,0,0,.5); max-width: calc(100% - 24px); }
+  .toast[hidden] { display: none; }
+  @media (max-width: 600px) {
+    .modal { align-items: flex-end; padding: 0; }
+    .modal form { max-width: none; border-radius: 16px 16px 0 0; padding-bottom: 22px; max-height: 92vh; overflow-y: auto; }
+  }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
   .modal[hidden] { display: none; }
   .tools[hidden] { display: none; }
@@ -99,7 +119,7 @@
   .modal form { background: var(--card, #171b25); border: 1px solid var(--border, #262c3a); border-radius: var(--radius, 10px); padding: 18px; width: 100%; max-width: 380px; display: grid; gap: 10px; }
   .modal h3 { margin: 0; font-size: 16px; }
   .modal label { display: grid; gap: 4px; font-size: 12px; color: var(--muted-foreground, #97a0b3); }
-  .modal input, .modal select { font: inherit; padding: 7px 9px; color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; }
+  .modal input, .modal select { font: inherit; font-size: 16px; padding: 9px 10px; color: var(--foreground, #e7eaf0); background: var(--background, #0f1218); border: 1px solid var(--border, #262c3a); border-radius: 6px; }
   .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
   .btn { font: inherit; font-weight: 600; padding: 7px 14px; cursor: pointer; border-radius: 8px; color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #262c3a); }
@@ -288,6 +308,8 @@
   }
 
   function sgn(x) { return (x > 0 ? "+" : "") + x; }
+  function isHot(p, dec) { var ev = p * dec - 1; return isFinite(ev) && ev >= EV_GOOD && ev < EV_SUSPECT; }
+  function betBtn(attrs, label, hot) { return '<button type="button" class="addbet' + (hot ? " hot" : "") + '" ' + attrs + ">＋ Parier " + label + "</button>"; }
 
   // Écart et total : probabilité du meilleur côté contre une cote standard de -110.
   function marketsHtml(g, h, a, pr, o) {
@@ -298,14 +320,14 @@
       var side = pHome >= 0.5 ? esc(h.info.abbr) + " " + sgn(o.spread) : esc(a.info.abbr) + " " + sgn(-o.spread);
       var p = Math.max(pHome, 1 - pHome);
       out.push('<span class="mkt">Écart : <b>' + side + "</b> couvre à " + pct(p) + " · " + verdict(p, STD_DEC) +
-        ' <button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="spread" data-pick="' + (pHome >= 0.5 ? "home" : "away") + '" data-p="' + p + '">＋ Parier</button></span>');
+        " " + betBtn('data-g="' + esc(g.id) + '" data-m="spread" data-pick="' + (pHome >= 0.5 ? "home" : "away") + '" data-p="' + p + '"', side, isHot(p, STD_DEC)) + "</span>");
     }
     if (typeof o.total === "number") {
       var pOver = 1 - normCdf((o.total - total) / TOTAL_SD);
       var tside = pOver >= 0.5 ? "Over " + o.total : "Under " + o.total;
       var tp = Math.max(pOver, 1 - pOver);
       out.push('<span class="mkt">Total : <b>' + tside + "</b> à " + pct(tp) + " · " + verdict(tp, STD_DEC) +
-        ' <button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="total" data-pick="' + (pOver >= 0.5 ? "over" : "under") + '" data-p="' + tp + '">＋ Parier</button></span>');
+        " " + betBtn('data-g="' + esc(g.id) + '" data-m="total" data-pick="' + (pOver >= 0.5 ? "over" : "under") + '" data-p="' + tp + '"', tside, isHot(tp, STD_DEC)) + "</span>");
     }
     return out.length ? out.join("") + '<span class="mkt">(écart et total calculés à une cote de -110)</span>' : "";
   }
@@ -328,7 +350,7 @@
           '" value="' + esc(val) + '"></label>' +
         '<span class="src" data-src="' + esc(id) + '">' + sourceHtml(id, val, !!bookDec, provider) + "</span>" +
         '<span class="ev" data-for="' + esc(id) + '">' + verdict(p, dec) + "</span>" +
-        '<button type="button" class="addbet" data-g="' + esc(g.id) + '" data-m="ml" data-pick="' + key + '" data-p="' + p + '" data-odds-from="' + esc(id) + '">＋ Parier</button>' +
+        betBtn('data-g="' + esc(g.id) + '" data-m="ml" data-pick="' + key + '" data-p="' + p + '" data-odds-from="' + esc(id) + '"', esc(t.info.abbr), isHot(p, dec)) +
       "</div></div>";
   }
 
@@ -505,16 +527,20 @@
     "Écart : probabilité de couvrir = écart projeté contre la ligne, écart-type " + MARGIN_SD + " pts. Total : écart-type " + TOTAL_SD + " pts. Les deux supposent une cote de -110 (1.91). " +
     "Mise = ¼ de Kelly, plafonnée à " + Math.round(MAX_STAKE * 100) + " % de la bankroll. Le modèle ignore les blessures, le repos et les voyages : un gros écart avec le book vient souvent d'une information qu'il n'a pas.</p>" +
     "</details></section>" +
-    '<div class="modal" id="betModal" hidden><form id="betForm">' +
-      '<h3 id="bmTitle"></h3>' +
-      '<label>Pari <select id="bmPick"></select></label>' +
+    '<div class="modal" id="betModal" hidden><form id="betForm" autocomplete="off">' +
+      '<div class="mhead"><h3 id="bmTitle"></h3><button type="button" class="x" id="bmX" aria-label="Fermer">✕</button></div>' +
+      '<div class="seg" id="bmSeg"></div><input type="hidden" id="bmPick">' +
       '<div class="row"><label id="bmLineWrap">Ligne <input id="bmLine" type="number" step="0.5" inputmode="decimal"></label>' +
-      '<label>Cote décimale <input id="bmOdds" type="number" step="0.01" min="1.01" inputmode="decimal" required></label></div>' +
-      '<div class="row"><label>Mise ($) <input id="bmStake" type="number" step="1" min="0.01" inputmode="decimal" required></label>' +
-      '<label>Parieur <input id="bmWho" list="whoList" placeholder="Cyric, Will…" required></label></div>' +
-      '<datalist id="whoList"><option value="Cyric"><option value="Will"></datalist>' +
-      '<div class="actions"><button type="button" class="btn" id="bmCancel">Annuler</button><button type="submit" class="btn main">Ajouter</button></div>' +
-    "</form></div>";
+      '<label>Cote du book (décimale) <input id="bmOdds" type="number" step="0.01" min="1.01" inputmode="decimal" required></label></div>' +
+      '<div class="msum" id="bmSum"></div>' +
+      '<label>Mise ($) <input id="bmStake" type="number" step="1" min="0.01" inputmode="decimal" required></label>' +
+      '<div class="chips" id="bmStakeChips"></div>' +
+      '<div class="lbl">Qui parie ?</div><div class="chips" id="bmWhoChips"></div>' +
+      '<input id="bmWho" placeholder="Autre nom…" required>' +
+      '<div class="gain" id="bmGain"></div>' +
+      '<div class="actions"><button type="button" class="btn" id="bmCancel">Annuler</button><button type="submit" class="btn main big">Ajouter le pari</button></div>' +
+    "</form></div>" +
+    '<div class="toast" id="toast" hidden></div>';
 
   // ================= Nos paris =================
   var BETS_KEY = "paris-stats-bets";
@@ -702,8 +728,8 @@
       hit: hits + "/" + info.last10.length,
       pct: pct(pOver),
       val: (over ? "Over " : "Under ") + verdict(over ? pOver : 1 - pOver, over ? oO : oU) +
-        ' <button type="button" class="addbet" data-g="' + esc(info.gid) + '" data-m="prop" data-pid="' + esc(info.pid) + '" data-stat="' + plStat +
-        '" data-pick="' + best + '" data-po="' + pOver + '">＋ Parier</button>'
+        " " + betBtn('data-g="' + esc(info.gid) + '" data-m="prop" data-pid="' + esc(info.pid) + '" data-stat="' + plStat +
+        '" data-pick="' + best + '" data-po="' + pOver + '"', (over ? "Over " : "Under ") + line, isHot(over ? pOver : 1 - pOver, over ? oO : oU))
     };
   }
 
@@ -794,93 +820,164 @@
   var whoLast = "";
   try { whoLast = localStorage.getItem("paris-stats-who") || ""; } catch (e) {}
 
+  function $(id) { return document.getElementById(id); }
+  function suggestedStake(p, dec) {
+    if (!(bankroll > 0) || !p || !(dec > 1)) return 0;
+    var b = dec - 1, f = Math.min((b * p - (1 - p)) / b * KELLY_FRAC, MAX_STAKE);
+    return f > 0 ? Math.max(1, Math.round(f * bankroll)) : 0;
+  }
+  function knownWho() {
+    var names = ["Cyric", "Will"];
+    bets.forEach(function (b) { if (b.who && names.indexOf(b.who) < 0) names.push(b.who); });
+    return names;
+  }
+
   function openBet(btn) {
     var g = upcomingById[btn.getAttribute("data-g")];
     if (!g) return;
     var m = btn.getAttribute("data-m"), pick = btn.getAttribute("data-pick"), o = g.odds || {};
     var h = abbr(g.homeId), a = abbr(g.awayId);
-    draft = { gameId: g.id, date: g.date, homeId: g.homeId, awayId: g.awayId, market: m, p: parseFloat(btn.getAttribute("data-p")) || null };
-    var sel = document.getElementById("bmPick"), opts;
+    draft = { gameId: g.id, date: g.date, homeId: g.homeId, awayId: g.awayId, market: m, pick0: pick, p0: parseFloat(btn.getAttribute("data-p")) || null };
+    var opts, odds = {}, line = "";
     if (m === "prop") {
-      var pid = btn.getAttribute("data-pid"), st = btn.getAttribute("data-stat"), saved2 = plLines[plKey(g.id, pid, st)] || {};
+      var pid = btn.getAttribute("data-pid"), st = btn.getAttribute("data-stat"), sv = plLines[plKey(g.id, pid, st)] || {};
       var pOver = parseFloat(btn.getAttribute("data-po"));
-      draft.playerId = pid; draft.playerName = PL.players[pid].n; draft.stat = st; draft.pOver = pOver;
-      draft.oddsOver = parseFloat(saved2.o) || STD_DEC; draft.oddsUnder = parseFloat(saved2.u) || STD_DEC;
-      draft.p = pick === "over" ? pOver : 1 - pOver;
-      sel.innerHTML = [["over", "Over"], ["under", "Under"]].map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === pick ? " selected" : "") + ">" + x[1] + "</option>"; }).join("");
-      document.getElementById("bmTitle").textContent = draft.playerName + " · " + STATS[st].label + " · " + a + " @ " + h;
-      document.getElementById("bmLineWrap").hidden = false;
-      document.getElementById("bmLine").value = saved2.l || "";
-      document.getElementById("bmOdds").value = (pick === "over" ? draft.oddsOver : draft.oddsUnder).toFixed(2);
-      fillStake();
-      document.getElementById("bmWho").value = whoLast;
-      modal.hidden = false;
-      document.getElementById("bmStake").focus();
-      return;
+      draft.playerId = pid; draft.playerName = PL.players[pid].n; draft.stat = st;
+      draft.pick0 = "over"; draft.p0 = pOver;
+      opts = [["over", "Over"], ["under", "Under"]];
+      odds = { over: parseFloat(sv.o) || STD_DEC, under: parseFloat(sv.u) || STD_DEC };
+      line = sv.l || "";
+      $("bmTitle").textContent = draft.playerName + " · " + STATS[st].label + " · " + a + " @ " + h;
+    } else {
+      if (m === "ml") {
+        opts = [["away", a + " gagne"], ["home", h + " gagne"]];
+        ["home", "away"].forEach(function (k) {
+          var inp = app.querySelector('input.odds[data-id="' + g.id + ":" + k + '"]');
+          odds[k] = inp && parseFloat(inp.value) > 1 ? parseFloat(inp.value) : NaN;
+        });
+      } else if (m === "spread") {
+        opts = [["away", a + " " + (typeof o.spread === "number" ? sgn(-o.spread) : "")], ["home", h + " " + (typeof o.spread === "number" ? sgn(o.spread) : "")]];
+        odds = { home: STD_DEC, away: STD_DEC };
+        line = typeof o.spread === "number" ? (pick === "home" ? o.spread : -o.spread) : "";
+      } else {
+        opts = [["over", "Over"], ["under", "Under"]];
+        odds = { over: STD_DEC, under: STD_DEC };
+        line = typeof o.total === "number" ? o.total : "";
+      }
+      $("bmTitle").textContent = a + " @ " + h + " · " + { ml: "Gagnant du match", spread: "Écart", total: "Total de points" }[m];
     }
-    if (m === "ml") opts = [["away", a + " gagne"], ["home", h + " gagne"]];
-    else if (m === "spread") opts = [["home", h + " (ligne domicile)"], ["away", a + " (ligne visiteur)"]];
-    else opts = [["over", "Over"], ["under", "Under"]];
-    sel.innerHTML = opts.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === pick ? " selected" : "") + ">" + esc(x[1]) + "</option>"; }).join("");
-    document.getElementById("bmTitle").textContent = a + " @ " + h + " · " + { ml: "Moneyline", spread: "Écart", total: "Total" }[m];
-    var lineWrap = document.getElementById("bmLineWrap"), lineIn = document.getElementById("bmLine");
-    lineWrap.hidden = m === "ml";
-    if (m === "spread") lineIn.value = typeof o.spread === "number" ? (pick === "home" ? o.spread : -o.spread) : "";
-    else if (m === "total") lineIn.value = typeof o.total === "number" ? o.total : "";
-    var odds = STD_DEC;
-    if (m === "ml") {
-      var inp = app.querySelector('input.odds[data-id="' + btn.getAttribute("data-odds-from") + '"]');
-      odds = inp && parseFloat(inp.value) > 1 ? parseFloat(inp.value) : NaN;
-    }
-    document.getElementById("bmOdds").value = isFinite(odds) ? odds.toFixed(2) : "";
-    var dec = parseFloat(document.getElementById("bmOdds").value), stake = "";
-    if (bankroll > 0 && draft.p && dec > 1) {
-      var b = dec - 1, f = Math.min((b * draft.p - (1 - draft.p)) / b * KELLY_FRAC, MAX_STAKE);
-      if (f > 0) stake = Math.max(1, Math.round(f * bankroll));
-    }
-    document.getElementById("bmStake").value = stake;
-    document.getElementById("bmWho").value = whoLast;
+    draft.odds = odds;
+    $("bmSeg").innerHTML = opts.map(function (x) { return '<button type="button" data-pick="' + x[0] + '">' + esc(x[1]) + "</button>"; }).join("");
+    $("bmLineWrap").hidden = m === "ml";
+    $("bmLine").value = line;
+    draft.pick = null;
+    setPick(pick);
+    $("bmWho").value = whoLast;
+    renderWho();
     modal.hidden = false;
-    document.getElementById("bmOdds").focus();
+    $("bmStake").focus();
   }
 
-  function fillStake() {
-    var dec = parseFloat(document.getElementById("bmOdds").value), stake = "";
-    if (bankroll > 0 && draft.p && dec > 1) {
-      var b = dec - 1, f = Math.min((b * draft.p - (1 - draft.p)) / b * KELLY_FRAC, MAX_STAKE);
-      if (f > 0) stake = Math.max(1, Math.round(f * bankroll));
-    }
-    document.getElementById("bmStake").value = stake;
+  function setPick(v) {
+    var prev = draft.pick;
+    draft.pick = v;
+    $("bmPick").value = v;
+    $("bmSeg").querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-pick") === v); });
+    draft.p = draft.p0 == null ? null : (v === draft.pick0 ? draft.p0 : 1 - draft.p0);
+    var d = draft.odds[v];
+    $("bmOdds").value = isFinite(d) ? d.toFixed(2) : "";
+    if (prev && prev !== v && draft.market === "spread" && $("bmLine").value !== "") $("bmLine").value = -parseFloat($("bmLine").value);
+    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value));
+    if (sug) $("bmStake").value = sug;
+    else if (!prev) $("bmStake").value = "";
+    renderStakeChips();
+    updateSum();
   }
-  document.getElementById("bmPick").addEventListener("change", function () {
-    if (draft && draft.market === "prop") {
-      var over = this.value === "over";
-      draft.p = over ? draft.pOver : 1 - draft.pOver;
-      document.getElementById("bmOdds").value = (over ? draft.oddsOver : draft.oddsUnder).toFixed(2);
-      fillStake();
-      return;
-    }
-    if (draft && draft.market === "spread") { var li = document.getElementById("bmLine"); if (li.value !== "") li.value = -parseFloat(li.value); }
+
+  function renderStakeChips() {
+    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value)), cur = parseFloat($("bmStake").value);
+    var list = (sug ? [[sug, "Suggérée " + sug + " $"]] : []).concat([10, 20, 50, 100].map(function (v) { return [v, v + " $"]; }));
+    $("bmStakeChips").innerHTML = list.map(function (x) {
+      return '<button type="button" data-stake="' + x[0] + '"' + (x[0] === cur ? ' class="on"' : "") + ">" + x[1] + "</button>";
+    }).join("");
+  }
+  function renderWho() {
+    var cur = $("bmWho").value.trim();
+    $("bmWhoChips").innerHTML = knownWho().map(function (n) {
+      return '<button type="button" data-who-pick="' + esc(n) + '"' + (n === cur ? ' class="on"' : "") + ">" + esc(n) + "</button>";
+    }).join("");
+  }
+  function updateSum() {
+    var dec = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value), p = draft.p;
+    var sum = "";
+    if (p) sum += "Notre chance : <b>" + pct(p) + "</b>" + (dec > 1 ? " · notre cote " + (1 / p).toFixed(2) + " · " + verdict(p, dec) : "");
+    else sum += "Pas de probabilité du modèle pour ce pari.";
+    if (draft.market !== "ml" && draft.market !== "prop") sum += '<br><span class="sub">Cote -110 (1.91) par défaut : remplace-la par celle du book.</span>';
+    $("bmSum").innerHTML = sum;
+    $("bmGain").innerHTML = dec > 1 && stake > 0
+      ? "Si ça passe : <b>+" + (stake * (dec - 1)).toFixed(2) + " $</b> <span class=\"sub\">(retour " + (stake * dec).toFixed(2) + " $)</span>"
+      : '<span class="sub">Entre la cote et la mise pour voir le gain.</span>';
+    $("bmStakeChips").querySelectorAll("button").forEach(function (b) { b.classList.toggle("on", parseFloat(b.getAttribute("data-stake")) === stake); });
+  }
+
+  var toastTimer = null;
+  function toast(html) {
+    var t = $("toast");
+    t.innerHTML = html;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 5000);
+  }
+
+  $("bmSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-pick]");
+    if (b) setPick(b.getAttribute("data-pick"));
   });
-  document.getElementById("bmCancel").addEventListener("click", function () { modal.hidden = true; });
-  modal.addEventListener("click", function (e) { if (e.target === modal) modal.hidden = true; });
-  document.getElementById("betForm").addEventListener("submit", function (e) {
+  $("bmStakeChips").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-stake]");
+    if (b) { $("bmStake").value = b.getAttribute("data-stake"); updateSum(); }
+  });
+  $("bmWhoChips").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-who-pick]");
+    if (b) { $("bmWho").value = b.getAttribute("data-who-pick"); renderWho(); }
+  });
+  $("bmWho").addEventListener("input", renderWho);
+  $("bmOdds").addEventListener("input", function () {
+    var d = parseFloat($("bmOdds").value);
+    if (d > 1) draft.odds[draft.pick] = d;
+    renderStakeChips(); updateSum();
+  });
+  $("bmStake").addEventListener("input", updateSum);
+  function closeModal() { modal.hidden = true; }
+  $("bmCancel").addEventListener("click", closeModal);
+  $("bmX").addEventListener("click", closeModal);
+  modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !modal.hidden) closeModal(); });
+  $("toast").addEventListener("click", function (e) {
+    if (e.target.closest("button[data-goto]")) { showView("paris"); $("toast").hidden = true; window.scrollTo(0, 0); }
+  });
+
+  $("betForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    var pick = document.getElementById("bmPick").value;
-    var odds = parseFloat(document.getElementById("bmOdds").value), stake = parseFloat(document.getElementById("bmStake").value);
-    var who = document.getElementById("bmWho").value.trim();
-    if (!(odds > 1) || !(stake > 0) || !who) return;
-    var b = Object.assign({}, draft, { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), pick: pick, odds: odds, stake: stake, who: who, createdAt: new Date().toISOString() });
-    if (b.market === "prop") { delete b.pOver; delete b.oddsOver; delete b.oddsUnder; }
+    var pick = $("bmPick").value;
+    var odds = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value);
+    var who = $("bmWho").value.trim();
+    if (!(odds > 1)) { $("bmOdds").focus(); return; }
+    if (!(stake > 0)) { $("bmStake").focus(); return; }
+    if (!who) { $("bmWho").focus(); return; }
+    var b = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), gameId: draft.gameId, date: draft.date, homeId: draft.homeId, awayId: draft.awayId,
+      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: draft.p, createdAt: new Date().toISOString() };
+    if (draft.market === "prop") { b.playerId = draft.playerId; b.playerName = draft.playerName; b.stat = draft.stat; }
     if (b.market !== "ml") {
-      var lv = parseFloat(document.getElementById("bmLine").value);
-      if (!isFinite(lv)) return;
+      var lv = parseFloat($("bmLine").value);
+      if (!isFinite(lv)) { $("bmLine").focus(); return; }
       b.line = b.market === "spread" ? (pick === "home" ? lv : -lv) : lv;
     }
     bets.push(b); saveBets();
     whoLast = who; try { localStorage.setItem("paris-stats-who", who); } catch (err) {}
-    modal.hidden = true;
+    closeModal();
     renderBets();
+    toast("✓ Pari ajouté : <b>" + esc(betLabel(b)) + "</b> · " + stake.toFixed(0) + ' $ <button type="button" class="btn" data-goto="paris">Voir nos paris</button>');
   });
 
   app.addEventListener("input", function (e) {
@@ -912,6 +1009,8 @@
     var book = parseFloat(el.getAttribute("data-book"));
     var dec = saved[id] ? parseFloat(saved[id].v) : (el.value === "" ? NaN : book);
     app.querySelector('.ev[data-for="' + id + '"]').innerHTML = verdict(parseFloat(el.getAttribute("data-p")), dec);
+    var bb = app.querySelector('button.addbet[data-odds-from="' + id + '"]');
+    if (bb) bb.classList.toggle("hot", isHot(parseFloat(el.getAttribute("data-p")), dec));
     app.querySelector('.src[data-src="' + id + '"]').innerHTML = sourceHtml(id, el.value, isFinite(book), el.getAttribute("data-prov"));
   }
 
