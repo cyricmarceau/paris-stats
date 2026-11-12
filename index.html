@@ -15,6 +15,8 @@
   }
   h1 { font-size: 22px; margin: 0 0 2px; }
   h2 { font-size: 16px; margin: 28px 0 10px; }
+  #maj { margin-top: 3px; }
+  #maj b { color: var(--foreground, #e7eaf0); font-weight: 600; }
   .sub { color: var(--muted-foreground, #97a0b3); font-size: 13px; }
   .num { font-variant-numeric: tabular-nums; }
   .scroll { overflow-x: auto; }
@@ -158,6 +160,7 @@
 <body>
 <h1>Paris stats NBA</h1>
 <div class="sub" id="meta"></div>
+<div class="sub" id="maj"></div>
 
 <div id="app"></div>
 
@@ -502,6 +505,26 @@
   var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" }) : "?";
   meta.textContent = "Saison " + (data.season || "") + " · " + data.games.length + " matchs joués · données du " + when +
     (data.source ? " (" + data.source + ")" : "");
+
+  // Heures du rafraîchissement automatique (GitHub Actions, en UTC) affichées à l'heure locale.
+  var REFRESH_UTC = [[11, 17], [17, 17], [21, 17], [23, 47]];
+  (function () {
+    var hm = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-digit" });
+    var now = new Date(), times = [], next = null;
+    for (var d = 0; d < 2; d++) {
+      REFRESH_UTC.forEach(function (t) {
+        var x = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, t[0], t[1]));
+        if (d === 0) times.push(x);
+        if (!next && x > now) next = x;
+      });
+    }
+    times.sort(function (a, b) { return a.getHours() * 60 + a.getMinutes() - (b.getHours() * 60 + b.getMinutes()); });
+    var mins = next ? Math.round((next - now) / 60000) : 0;
+    var dans = mins >= 60 ? Math.floor(mins / 60) + " h " + String(mins % 60).padStart(2, "0") : mins + " min";
+    document.getElementById("maj").innerHTML = "🔄 Mise à jour automatique 4 fois par jour : " +
+      times.map(function (x) { return hm.format(x); }).join(", ") +
+      (next ? " · prochaine à <b>" + hm.format(next) + "</b> (dans " + dans + ")" : "");
+  })();
 
   var ageHours = data.generatedAt ? (Date.now() - new Date(data.generatedAt).getTime()) / 36e5 : 0;
   var stale = ageHours > 12
