@@ -16,6 +16,13 @@
   h1 { font-size: 22px; margin: 0 0 2px; }
   h2 { font-size: 16px; margin: 28px 0 10px; }
   #maj { margin-top: 3px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; margin-left: 8px; padding: 3px 10px 3px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; color: #4ade80; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.35); }
+  .live i { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e, 0 0 12px rgba(34,197,94,.6); animation: blink 1.6s ease-in-out infinite; }
+  .live.late { color: #facc15; background: rgba(250,204,21,.1); border-color: rgba(250,204,21,.35); }
+  .live.late i { background: #eab308; box-shadow: 0 0 6px #eab308; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .live i { animation: none; } }
   #maj b { color: var(--foreground, #e7eaf0); font-weight: 600; }
   .sub { color: var(--muted-foreground, #97a0b3); font-size: 13px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -158,7 +165,7 @@
 </style>
 </head>
 <body>
-<h1>Paris stats NBA</h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -505,6 +512,19 @@
   var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" }) : "?";
   meta.textContent = "Saison " + (data.season || "") + " · " + data.games.length + " matchs joués · données du " + when +
     (data.source ? " (" + data.source + ")" : "");
+
+  // Voyant : vert si les données ont moins de 13 h (le plus long écart entre deux mises à jour est d'environ 11 h 30).
+  (function () {
+    var live = document.getElementById("live");
+    var ageHours = data.generatedAt ? (Date.now() - new Date(data.generatedAt).getTime()) / 36e5 : 99;
+    if (ageHours > 13) {
+      live.classList.add("late");
+      live.querySelector("span").textContent = "Données en retard";
+      live.title = "Dernière mise à jour il y a " + Math.round(ageHours) + " h";
+    } else {
+      live.title = "Données mises à jour il y a " + (ageHours < 1 ? Math.round(ageHours * 60) + " min" : Math.round(ageHours) + " h");
+    }
+  })();
 
   // Heures du rafraîchissement automatique (GitHub Actions, en UTC) affichées à l'heure locale.
   var REFRESH_UTC = [[11, 17], [17, 17], [21, 17], [23, 47]];
