@@ -17,3 +17,12 @@ Le script vérifie les 30 équipes, les références des matchs et les scores, d
 ## Rafraîchissement automatique
 
 Le workflow GitHub Actions `.github/workflows/refresh-data.yml` lance `node fetch-data.mjs` quatre fois par jour (6 h 17, 12 h 17, 16 h 17 et 18 h 47, heure de l’Est en hiver) et pousse le nouveau `data.js` sur `main`, ce qui redéploie le site sur Render. Il peut aussi être lancé à la main depuis l’onglet *Actions* → *Rafraîchir les données NBA* → *Run workflow*. Si ESPN échoue, le job sort en erreur et l’ancien `data.js` reste en place.
+
+## Joueurs, blessures et face-à-face
+
+`fetch-extras.mjs` (lancé par le même workflow, après `fetch-data.mjs`) écrit :
+
+- `players.js` : stats de chaque joueur match par match (minutes, points, rebonds, passes, paniers à 3), lues dans la feuille de match ESPN (`/summary?event=ID`). Incrémental : seules les feuilles de match pas encore lues sont téléchargées. Contient aussi les blessures de toute la ligue (`/injuries`).
+- `h2h.js` : matchs de saison régulière 2024-25 et 2025-26 (`/teams/ID/schedule?season=AAAA`), pour les face-à-face. Téléchargé une seule fois.
+
+Si ce script échoue, `data.js` est quand même publié et la page fonctionne sans l’onglet Joueurs.
