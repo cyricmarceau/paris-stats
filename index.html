@@ -81,9 +81,26 @@
   nav.menu button.on { background: var(--foreground, #e7eaf0); color: var(--background, #0f1218); }
   nav.menu .count { font-size: 11px; opacity: .7; margin-left: 4px; }
   .view[hidden] { display: none; }
-  button.addbet { font: inherit; font-size: 13px; font-weight: 600; min-height: 32px; padding: 5px 13px; cursor: pointer; border-radius: 999px; color: var(--foreground, #e7eaf0); background: rgba(255,255,255,.07); border: 1px solid var(--border, #3a4255); white-space: nowrap; vertical-align: middle; }
-  button.addbet:hover { background: rgba(255,255,255,.14); }
-  button.addbet.hot { background: var(--success, #4ade80); color: #06240f; border-color: transparent; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
+  button.addbet {
+    font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .01em; min-height: 34px; padding: 6px 14px 6px 11px; cursor: pointer;
+    border-radius: 999px; color: #fff; white-space: nowrap; vertical-align: middle; display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #a855f7); border: 1px solid rgba(255,255,255,.18);
+    box-shadow: 0 2px 10px rgba(124,58,237,.35), inset 0 1px 0 rgba(255,255,255,.25);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  }
+  button.addbet::before { content: "🎯"; font-size: 14px; line-height: 1; }
+  button.addbet:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 6px 18px rgba(124,58,237,.5), inset 0 1px 0 rgba(255,255,255,.3); }
+  button.addbet:active { transform: translateY(1px) scale(.97); box-shadow: 0 1px 4px rgba(124,58,237,.4); }
+  button.addbet:focus-visible { outline: 2px solid #c4b5fd; outline-offset: 2px; }
+  button.addbet.hot {
+    color: #052e16; background: linear-gradient(135deg, #4ade80, #22c55e 50%, #a3e635); border-color: rgba(255,255,255,.35);
+    box-shadow: 0 2px 12px rgba(34,197,94,.45), inset 0 1px 0 rgba(255,255,255,.45);
+    animation: hotpulse 1.8s ease-in-out infinite;
+  }
+  button.addbet.hot::before { content: "🔥"; }
+  button.addbet.hot:hover { box-shadow: 0 6px 22px rgba(34,197,94,.65), inset 0 1px 0 rgba(255,255,255,.5); }
+  @keyframes hotpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.55), 0 2px 12px rgba(34,197,94,.45); } 50% { box-shadow: 0 0 0 7px rgba(74,222,128,0), 0 2px 12px rgba(34,197,94,.45); } }
+  @media (prefers-reduced-motion: reduce) { button.addbet, button.addbet.hot { animation: none; transition: none; } }
   .mhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .mhead .x { font: inherit; font-size: 18px; line-height: 1; background: none; border: 0; color: var(--muted-foreground, #97a0b3); cursor: pointer; padding: 2px 4px; }
   .seg { display: flex; gap: 6px; }
@@ -123,7 +140,8 @@
   .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
   .btn { font: inherit; font-weight: 600; padding: 7px 14px; cursor: pointer; border-radius: 8px; color: var(--foreground, #e7eaf0); background: none; border: 1px solid var(--border, #262c3a); }
-  .btn.main { background: var(--success, #4ade80); color: #06240f; border-color: transparent; }
+  .btn.main { background: linear-gradient(135deg, #4ade80, #22c55e); color: #06240f; border-color: transparent; box-shadow: 0 3px 14px rgba(34,197,94,.4); }
+  .btn.main:hover { filter: brightness(1.08); }
   .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
   .kpi { background: var(--card, #171b25); border: 1px solid var(--border, #262c3a); border-radius: var(--radius, 10px); padding: 10px 12px; }
   .kpi .l { font-size: 11px; color: var(--muted-foreground, #97a0b3); text-transform: uppercase; letter-spacing: .05em; }
@@ -309,7 +327,7 @@
 
   function sgn(x) { return (x > 0 ? "+" : "") + x; }
   function isHot(p, dec) { var ev = p * dec - 1; return isFinite(ev) && ev >= EV_GOOD && ev < EV_SUSPECT; }
-  function betBtn(attrs, label, hot) { return '<button type="button" class="addbet' + (hot ? " hot" : "") + '" ' + attrs + ">＋ Parier " + label + "</button>"; }
+  function betBtn(attrs, label, hot) { return '<button type="button" class="addbet' + (hot ? " hot" : "") + '" ' + attrs + ">Parier " + label + "</button>"; }
 
   // Écart et total : probabilité du meilleur côté contre une cote standard de -110.
   function marketsHtml(g, h, a, pr, o) {
