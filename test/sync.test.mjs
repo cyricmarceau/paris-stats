@@ -7,6 +7,35 @@ const flush = async () => { for (let i = 0; i < 20; i++) await new Promise(r => 
 const okBet = { id: 'ok1', gameId: 'u1', homeId: '2', awayId: '1', market: 'ml', pick: 'home', odds: 2.1, stake: 10, who: 'Cyric', date: '2026-11-20T00:00:00.000Z' };
 const longName = { ...okBet, id: 'long1', who: 'Un nom beaucoup trop long pour le serveur de paris' }; // > 40 caractères
 
+for (const status of [400,404]) {
+  test('backlog 11 : DELETE '+status+' ne bloque pas les suppressions suivantes',{todo:'backlog 11'},async()=>{
+    const calls=[], storage=storageWith([]);
+    storage['paris-stats-pend-del']=JSON.stringify(['bad','good']);
+    const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+      const deleting=opts.method==='DELETE';
+      if(deleting) calls.push(url);
+      const code=deleting && url.endsWith('/bad') ? status : 200;
+      return Promise.resolve({ok:code===200,status:code,json:async()=>({bets:[]})});
+    }});
+    await flush();
+    assert.ok(calls.some(url=>url.endsWith('/good')),'la premiere erreur bloque good');
+    assert.deepEqual(p.state().pendDel,['bad']);
+    assert.notEqual(p.state().sync.state,'ok');
+  });
+}
+
+test('revue 8 : sync encode les ids avant DELETE',async()=>{
+  const ids=['a/b','%2F','\u0000','avec espace','été 🏀'], calls=[], storage=storageWith([]);
+  storage['paris-stats-pend-del']=JSON.stringify(ids);
+  const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+    if(opts.method==='DELETE') calls.push(url);
+    return Promise.resolve({ok:true,status:200,json:async()=>({bets:[]})});
+  }});
+  await flush();
+  assert.deepEqual(calls.map(url=>url.slice(url.lastIndexOf('/')+1)),ids.map(encodeURIComponent));
+  assert.deepEqual(p.state().pendDel,[]);
+});
+
 // Imite server.mjs : GET renvoie la liste ; POST garde seulement les paris valides (nom ≤ 40), 400 si aucun.
 function fakeApi() {
   const server = [], calls = [];

@@ -37,6 +37,46 @@ async function startServer(env = {}) {
 
 const validBet = (o = {}) => ({ id: 'b1', gameId: '401909977', homeId: '27', awayId: '8', market: 'ml', pick: 'home', odds: 2.5, stake: 10, who: 'Cyric', date: '2026-11-13T00:00:00.000Z', ...o });
 
+test('revue 8 : DELETE decode une seule fois et garde le message exact sans changer le chemin GitHub', async () => {
+  const s = await startServer();
+  for (const id of ['a/b', '%2F', '\u0000', 'avec espace', 'été 🏀', '../bets.json', 'a?b#c', 'x'.repeat(40)]) {
+    assert.equal((await s.call('/api/bets', {method:'POST',code:'secret',body:{bet:validBet({id})}})).status,200);
+    const r=await s.call('/api/bets/'+encodeURIComponent(id),{method:'DELETE',code:'secret'});
+    assert.equal(r.status,200,JSON.stringify(id));
+    assert.deepEqual(r.json.bets,[]);
+    assert.equal(s.github().messages.at(-1),'Pari supprimé '+id);
+    assert.deepEqual(JSON.parse(s.github().file),[]);
+  }
+});
+
+test('revue 8 : authentification avant DELETE malforme, limites sans ecriture', async () => {
+  const s=await startServer();
+  for (const [segment,status] of [['%E0%A4%A',400],['%00',200],['x'.repeat(41),404],['x'.repeat(201),404]]) {
+    const path='/api/bets/'+segment;
+    const before=s.github().puts;
+    assert.equal((await s.call(path,{method:'DELETE'})).status,401);
+    assert.equal(s.github().puts,before);
+    assert.equal((await s.call(path,{method:'DELETE',code:'secret'})).status,status);
+    if(status!==200) assert.equal(s.github().puts,before);
+  }
+});
+
+for (const [label,id] of [['vide',''],['point','.'],['deux points','..'],['unicode long','é'.repeat(40)],['unicode BMP','漢'.repeat(40)]]) {
+  test('backlog 11 : round trip DELETE pour id '+label,{todo:'backlog 11'},async()=>{
+    const s=await startServer();
+    assert.equal((await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({id})}})).status,200);
+    const r=await s.call('/api/bets/'+encodeURIComponent(id),{method:'DELETE',code:'secret'});
+    assert.equal(r.status,200);
+    assert.deepEqual(r.json.bets,[]);
+  });
+}
+
+test('backlog 11 : un id accepte doit pouvoir etre encode par le client',{todo:'backlog 11'},async()=>{
+  const s=await startServer(), id='\ud800';
+  assert.equal((await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({id})}})).status,200);
+  assert.doesNotThrow(()=>encodeURIComponent(id));
+});
+
 test('santé et liste vide ; la branche paris-data est créée', async () => {
   const s = await startServer();
   assert.equal((await s.call('/health')).status, 200);

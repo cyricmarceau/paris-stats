@@ -11,6 +11,13 @@ const block = (teamId, start) => ({
 });
 const game = { id: 'g1', date: '2026-11-01T00:00:00Z', homeId: '1', awayId: '2' };
 
+test('backlog 22 : deux blocs de la meme equipe ne forment pas une feuille complete', {todo:'backlog 22'}, () => {
+  const s={boxscore:{players:[block('1',100),block('1',100)]}};
+  const store={players:{}};
+  assert.throws(()=>parseBox(s,game,store));
+  assert.deepEqual(store.players,{});
+});
+
 test('feuille de match : joueurs lus, absents et 0 minute ignorés', () => {
   const s = { boxscore: { players: [block('1', 100), block('2', 200)] } };
   s.boxscore.players[0].statistics[0].athletes.push(athlete('999', [], { didNotPlay: true }), athlete('998', ['0', '0', '0', '0', '0-0']));
