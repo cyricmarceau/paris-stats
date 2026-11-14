@@ -898,17 +898,26 @@
             throw e;
           });
       }
+      var delRefused = false;
       pendDel.slice().forEach(function (id) {
         chain = chain.then(function () { return api("/api/bets/" + encodeURIComponent(id), { method: "DELETE" }); })
-          .then(function (r) { pendDel = pendDel.filter(function (x) { return x !== id; }); savePend(); adopt(r.bets || []); return r; });
+          .then(function (r) { pendDel = pendDel.filter(function (x) { return x !== id; }); savePend(); adopt(r.bets || []); return r; },
+            // Suppression refusée (400/404) : on la garde en attente et on passe aux suivantes.
+            function (e) { if (e && (e.status === 400 || e.status === 404)) { delRefused = true; return; } throw e; });
       });
-      return chain.then(function () { if (refused) { var e = new Error("refus"); e.status = 400; throw e; } });
+      return chain.then(function () {
+        if (refused || delRefused) {
+          var e = new Error("refus"); e.status = 400;
+          e.userMsg = refused ? null : "Le serveur a refusé une suppression ; elle reste en attente.";
+          throw e;
+        }
+      });
     }).then(function () {
       setSync("ok"); renderBets();
     }, function (e) {
       if (e && e.status === 401) setSync("code", teamCode ? "Code d'équipe invalide." : "");
       else if (e && e.status === 503) setSync("off", "Serveur pas encore configuré.");
-      else if (e && e.status === 400) setSync("off", "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
+      else if (e && e.status === 400) setSync("off", e.userMsg || "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
       else setSync("off", "Serveur injoignable.");
       renderBets();
     }).then(function () { syncing = false; });

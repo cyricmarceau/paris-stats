@@ -61,8 +61,8 @@ test('revue 8 : authentification avant DELETE malforme, limites sans ecriture', 
   }
 });
 
-for (const [label,id] of [['vide',''],['point','.'],['deux points','..'],['unicode long','é'.repeat(40)],['unicode BMP','漢'.repeat(40)]]) {
-  test('backlog 11 : round trip DELETE pour id '+label,{todo:'backlog 11'},async()=>{
+for (const [label,id] of [['unicode long','é'.repeat(40)],['unicode BMP','漢'.repeat(40)]]) {
+  test('backlog 11 : round trip DELETE pour id '+label,async()=>{
     const s=await startServer();
     assert.equal((await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({id})}})).status,200);
     const r=await s.call('/api/bets/'+encodeURIComponent(id),{method:'DELETE',code:'secret'});
@@ -71,11 +71,17 @@ for (const [label,id] of [['vide',''],['point','.'],['deux points','..'],['unico
   });
 }
 
-test('backlog 11 : un id accepte doit pouvoir etre encode par le client',{todo:'backlog 11'},async()=>{
-  const s=await startServer(), id='\ud800';
-  assert.equal((await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({id})}})).status,200);
-  assert.doesNotThrow(()=>encodeURIComponent(id));
-});
+// Itération 9 : ces id ne peuvent pas faire l'aller-retour dans l'adresse du DELETE (le client réécrit
+// « /api/bets/. » et « /api/bets/.. » avant l'envoi ; « » ne forme pas de segment ; encodeURIComponent lève
+// une erreur sur un demi-caractère Unicode). Le contrat retenu : tout id accepté au POST est supprimable,
+// donc ceux-ci sont refusés dès le POST, sans écriture.
+for (const [label,id] of [['vide',''],['point','.'],['deux points','..'],['demi-caractère Unicode','\ud800']]) {
+  test('backlog 11 : id impossible à supprimer refusé dès le POST ('+label+')',async()=>{
+    const s=await startServer();
+    assert.equal((await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({id})}})).status,400);
+    assert.equal(s.github().puts,0);
+  });
+}
 
 test('santé et liste vide ; la branche paris-data est créée', async () => {
   const s = await startServer();

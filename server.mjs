@@ -63,7 +63,9 @@ async function update(change, message) {
 
 function validBet(b) {
   const teamId = v => typeof v === 'string' && /^\d{1,10}$/.test(v); // identifiants ESPN numériques
-  return b && typeof b.id === 'string' && b.id.length <= 40 && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
+  // id : doit pouvoir revenir intact dans l'adresse du DELETE (pas vide, pas « . » ni « .. », Unicode bien formé).
+  const idOk = typeof b?.id === 'string' && b.id.length >= 1 && b.id.length <= 40 && b.id !== '.' && b.id !== '..' && b.id.isWellFormed();
+  return b && idOk && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
     teamId(b.homeId) && teamId(b.awayId) &&
     // Champs facultatifs affichés par la page : bon type ou absents.
     (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&
@@ -120,7 +122,7 @@ createServer(async (req, res) => {
       return send(res, 200, { bets });
     }
     // L'id est décodé (la page l'envoie avec encodeURIComponent) : tout id accepté au POST (≤ 40 caractères) est supprimable.
-    const m = url.pathname.match(/^\/api\/bets\/([^/]{1,200})$/);
+    const m = url.pathname.match(/^\/api\/bets\/([^/]+)$/);
     if (m && req.method === 'DELETE') {
       let id;
       try { id = decodeURIComponent(m[1]); } catch { return send(res, 400, { error: 'Identifiant invalide.' }); }

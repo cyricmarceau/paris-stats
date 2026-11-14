@@ -8,7 +8,7 @@ const okBet = { id: 'ok1', gameId: 'u1', homeId: '2', awayId: '1', market: 'ml',
 const longName = { ...okBet, id: 'long1', who: 'Un nom beaucoup trop long pour le serveur de paris' }; // > 40 caractères
 
 for (const status of [400,404]) {
-  test('backlog 11 : DELETE '+status+' ne bloque pas les suppressions suivantes',{todo:'backlog 11'},async()=>{
+  test('backlog 11 : DELETE '+status+' ne bloque pas les suppressions suivantes',async()=>{
     const calls=[], storage=storageWith([]);
     storage['paris-stats-pend-del']=JSON.stringify(['bad','good']);
     const p=loadPage({data:sampleData(),storage,fetch(url,opts){
