@@ -107,3 +107,33 @@ test('un pari avec un identifiant d’équipe dangereux doit être refusé', asy
   const r = await s.call('/api/bets', {method:'POST',code:'secret',body:{bet:validBet({homeId:'constructor',awayId:'1'})}});
   assert.equal(r.status, 400);
 });
+
+test('numeric team ids remain accepted for all four page markets', async () => {
+  const s = await startServer();
+  for (const market of ['ml', 'spread', 'total', 'prop']) {
+    const b = validBet({ id: market, market, pick: ['total', 'prop'].includes(market) ? 'over' : 'home',
+      ...(market === 'ml' ? {} : { line: 20.5 }), ...(market === 'prop' ? { playerId: '123', stat: 'pts', playerName: 'Player' } : {}) });
+    const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: b } });
+    assert.equal(r.status, 200, market);
+    assert.ok(r.json.bets.some(x => x.id === market));
+  }
+});
+
+test('inherited names in either team id are rejected', async () => {
+  const s = await startServer();
+  for (const field of ['homeId', 'awayId']) {
+    for (const id of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({ [field]: id }) } });
+      assert.equal(r.status, 400, `${field}=${id}`);
+    }
+  }
+  assert.equal(s.github().puts, 0);
+});
+
+test('backlog 15: dangerous player id is rejected for props', { todo: 'backlog 15' }, async () => {
+  const s = await startServer();
+  const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({
+    market: 'prop', pick: 'over', line: 20.5, playerId: 'constructor', stat: 'pts'
+  }) } });
+  assert.equal(r.status, 400);
+});

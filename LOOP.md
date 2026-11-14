@@ -1,10 +1,10 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CODEX
+TOUR_CLAUDE
 
 ## Itération
-3
+4
 
 ## Projet (analyse de la préparation)
 - Site statique : `index.html` (CSS + un script en ligne, ~1450 lignes), données générées `data.js`, `players.js`, `h2h.js`, `h2hbox.js`.
@@ -17,8 +17,10 @@ TOUR_CODEX
 - Consignes du projet : `AGENTS.md` (et `CLAUDE.md` qui l'importe).
 
 ## Backlog (priorisé : bugs > sécurité > perf > qualité > UX)
-14. ~~**[BUG – élevé] Identifiant d’équipe accepté qui bloque toute la page.**~~ Corrigé à l'itération 3 (abbr() n'accepte que les clés propres ; le serveur exige des id d'équipe numériques). `server.mjs:64-70` ne valide pas homeId/awayId : POST avec `homeId: 'constructor'` renvoie 200. `index.html:574` lit `teams[id].info.abbr` sur une propriété héritée et lève TypeError pendant renderBets (`index.html:1011,1033,1185`). Une copie locale ainsi enregistrée bloque le prochain chargement avant même la synchro ; ce champ passe aussi le filtre d’import (`index.html:1427`). Deux tests TODO `backlog 14` (API réelle avec faux GitHub + harness page). Valider les champs et rendre abbr robuste aux clés héritées. Distinct du backlog 12 : champ d’équipe, exception de rendu, pas perte locale par b.id.
+15. **[BUG – élevé] Un identifiant joueur hérité bloque encore le rendu.** `index.html:933-934` : prop sur un match terminé dans PL.done avec `playerId: 'constructor'` → pl.g.filter lève TypeError au chargement, avant la synchro. POST 200 reproduit (`server.mjs:64-71`) ; passe aussi le filtre d’import (`index.html:1428`). Deux nouveaux TODO backlog 15 (chargement local et API réelle). Valider les champs prop et protéger PL.players par une vérification de clé propre, y compris pour les paris déjà enregistrés. Distinct du backlog 14 (joueur, pas équipe). Priorité suivante.
+14. ~~**[BUG – élevé] Identifiant d’équipe hérité qui bloque la page.**~~ Confirmé corrigé à l’itération 3 : abbr ne lit que les clés propres (`index.html:575`), validation numérique des équipes (`server.mjs:65-67`). Les deux tests échouent sur eaf9940^ et passent sur HEAD ; compatibilité détaillée dans la revue 3.
 12. **[BUG – moyen] Perte locale pour un id hérité de Object.prototype.** `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
+16. **[BUG – moyen] Un match inexistant est compté comme réglé.** `index.html:938-951` lit gameById sans clé propre : `gameId: 'constructor', market: 'ml', pick: 'away'` obtient W (faux profit de 10 $ avec mise 10/cote 2). Les scores undefined produisent NaN ; par lecture, spread/total tombent sur P. L’API accepte toute chaîne gameId (`server.mjs:66`), l’import aussi (`index.html:1428`). Nouveau TODO backlog 16 : résultat attendu null, réel W au premier cas ; les variantes suivantes ne sont pas exécutées après cette assertion. Ne régler que les matchs réellement présents ; contrôler aussi l’affichage `index.html:1005`.
 1. ~~**[BUG – moyen] Pari refusé : perte locale, succès trompeur et suppressions bloquées.**~~ Confirmé terminé à l’itération 2 : refus conservé et signalé, DELETE indépendants envoyés malgré POST 400. Les deux anciens TODO passent et échouent sur `c806e4c^`. Cas concurrent préexistant suivi séparément au backlog 13.
 10. **[BUG – moyen] Doublons dans un même POST comptés deux fois.** `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
@@ -41,19 +43,23 @@ Itération 3 — backlog 14 (identifiant d'équipe hérité qui fait planter la 
 - Limite connue : le serveur ne revalide pas les paris déjà dans `bets.json` ; l'import de la page n'applique pas encore la même règle sur les id d'équipe (le rendu ne plante plus, mais l'envoi sera refusé).
 
 ## Review
-(revue 3 en attente de Codex ; ci-dessous, la revue 2)
 
-**À CORRIGER — revue de l’itération 2 par Codex ; correctif du backlog 1 accepté.**
+**À CORRIGER — revue 3 par Codex ; backlog 14 accepté, nouveaux 15/16 à traiter.**
 
-- Consignes : AGENTS.md et LOOP.md lus, git show HEAD = `c806e4c`. Skills disponibles examinés : aucun skill spécialisé pertinent pour cette revue Node/HTML ; aucun SKILL.md de projet trouvé. Branche conservée ; seuls LOOP.md et test/ modifiés, aucun push.
-- Preuve avant/après : les deux anciens TODO du backlog 1 exécutés sans TODO avec le vrai harness dans une copie temporaire sous test/, sur `c806e4c^:index.html` : 0/2, exit 1 (succès trompeur ; aucun DELETE). Sur HEAD : 2/2. Copie temporaire supprimée. Revue 1 traitée ; amélioration mesurable.
-- Correctif `index.html:878-900` : refused concerne seulement le lot envoyé ; POST partiel retire seulement les id acceptés, POST 400 conserve les ajouts et laisse partir les DELETE. Le refus synthétique atteint le gestionnaire d’erreur (`index.html:903-909`) ; renderBets affiche via syncHtml le refus, le nombre de changements et Réessayer (`index.html:921`), sans annoncer le succès. HTML vérifié dans le faux DOM, pas seulement état SYNC.
-- DELETE en panne après POST refusé : son erreur prend priorité sur le refus (500 → « Serveur injoignable », 401 → code, 503 → configuration), les files non confirmées sont conservées. Test 500 puis réessai : suppression confirmée et refus toujours affiché. Les chemins contrôlés réinitialisent syncing (`index.html:910`) et permettent de réessayer. Cette remise à zéro dépend encore du bon déroulement de renderBets : pas de finally si le rendu lève (voir backlog 14). Statuts 401/503 vérifiés par lecture, pas par nouveau test.
-- 400 sans rapport avec les paris : GET 400 et POST 400 « En-tête invalide » simulés. Aucune mutation après GET ; DELETE envoyé après POST. Le motif fourni est remplacé par « pari refusé » (`index.html:889,906`). Limite de diagnostic confirmée ; pas de régression démontrée avec server.mjs actuel, dont l’unique réponse 400 explicite concerne validBet (`server.mjs:105`). JSON malformé reste au backlog 3 (500). Pas de garantie générale sur les 400 d’un intermédiaire.
-- Concurrence : un ajout pendant POST reste local et en attente, mais n’est pas envoyé et le succès est annoncé. Défaut préexistant distinct du refus corrigé, nouveau backlog 13. Le test reproduit les mutations du formulaire via le crochet de test ; aucun test navigateur effectué.
-- Nouveaux défauts : backlog 14 élevé (API accepte homeId constructor, TypeError dans abbr au chargement : deux TODO), backlog 13 moyen (POST différé : un TODO). Les trois anciens TODO sont conservés, aucun test supprimé. Ce contrôle ne constitue pas un audit exhaustif de sécurité.
-- Vérifications indépendantes : `npm run lint` 4/4 ; `npm test` initial : 34 réussis + 3 TODO ; final : 43 tests, 37 réussis, 6 TODO en échec attendu, 0 échec bloquant, exit 0. Aucun build ni typecheck. API locale avec faux GitHub ; aucun service de production consulté.
-- Arrêt : aucune condition atteinte (2 itérations revues, backlog non vide, amélioration mesurable). Itération 3, TOUR_CLAUDE. Priorité : 14, puis pertes/doublons existants, puis 13. Backlog 1 clos.
+- AGENTS.md, LOOP.md et git show HEAD (`eaf9940`) lus. Skills disponibles examinés : aucun skill spécialisé pertinent pour cette revue Node/HTML ; aucun SKILL.md de projet trouvé par rg. Branche conservée, seuls LOOP.md et test/ modifiés ; aucun push.
+- Preuve indépendante : copies temporaires sous test/ du parent eaf9940^ (index.html et server.mjs), tests actuels, harness et faux GitHub. `node --test --test-name-pattern="chargement des paris|dangereux" …` : parent 0/2, exit 1 (TypeError abbr ; POST 200 au lieu de 400), HEAD 2/2, exit 0. Copies supprimées ; aucun remplacement de source du dépôt. Une première sélection avec accent ne sélectionnait aucun test ; seules ces dernières exécutions constituent la preuve.
+- Correctif `index.html:575` robuste pour les équipes héritées déjà présentes localement, importées ou reçues du serveur. Validation `server.mjs:65-67` : nouveau test vert sur homeId ET awayId avec constructor, __proto__, toString et hasOwnProperty (aucune écriture GitHub).
+- Fixture légitime : homeId/awayId correspondent au formulaire (`index.html:1214,1342`). Aucun test supprimé ni assertion affaiblie ; les tests négatifs isolent encore leur champ invalide au lieu d’échouer accidentellement sur la fixture. Nouveau test API vert : ml, spread, total, prop avec équipes numériques → 200 et présence dans la réponse.
+- Historique : `git log --reverse -S 'homeId:' -- index.html` et `git show 527e57e:index.html` contrôlés. Dès le premier suivi des paris (527e57e, 11 nov. 2026), draft inclut les équipes et Object.assign les copie dans le pari ; 15e4eab les conserve explicitement. Pas de version du formulaire de paris sans homeId trouvée. ESPN converti en chaînes (`fetch-data.mjs:81-83`). Pas de régression démontrée pour les paris normalement créés, y compris déjà en attente sur téléphone.
+- Import : `index.html:1428` accepte encore des objets sans homeId/awayId, des nombres ou des chaînes non numériques ; le POST les refuse désormais. Ils restent locaux/en attente avec message générique (`index.html:906`), sans perte grâce au backlog 1. Les exports des formulaires historiques contiennent ces champs ; les imports externes n’ont pas cette garantie. Limite confirmée par lecture des filtres, pas par test d’import navigateur : envisager validation/enrichissement cohérent à l’import. GET/DELETE ne revalident pas les anciens paris du serveur.
+- Autres lookups : abbr protège les équipes des paris ; les autres teams[…] viennent des données NBA ou des sélections, pas directement de ces champs. upcomingById[b.gameId] (`index.html:823-824`) sort si odds absent sur une propriété héritée : pas de crash trouvé là. gameById règle un match inexistant (nouveau 16). PL.players[b.playerId] bloque le rendu (nouveau 15, deux TODO reproduits). STATS[b.stat] (`index.html:928,933,1428`) reste sans clé propre : une chaîne héritée passe l’import et peut donner un libellé undefined ; aucune exception prouvée pour une simple chaîne stat héritée. Validation prop serveur insuffisante, à examiner avec 15. Pas d’audit exhaustif ni de navigateur/production consulté.
+- Checks : `npm run lint` 4/4 ; `npm test` initial 43 = 39 réussis + 4 TODO ; final 48 = 41 réussis + 7 TODO en échec attendu, 0 échec bloquant, exit 0. Cinq tests ajoutés, aucun supprimé ; trois nouveaux TODO (15 × 2, 16 × 1). Aucun build ni typecheck.
+- Aucun arrêt : trois itérations, backlog non vide, amélioration mesurable (deux tests 14 désormais verts). Itération 4, TOUR_CLAUDE. Priorité 15 puis défauts moyens dans l’ordre du backlog.
+
+Revues précédentes condensées :
+
+- Revue 1 : À CORRIGER ; succès trompeur/refus partiel du backlog 1, nouveaux 10/11/12 ; 32 réussis + 5 TODO.
+- Revue 2 : À CORRIGER ; backlog 1 confirmé (ancien 0/2, actuel 2/2), nouveaux 14/13 ; 37 réussis + 6 TODO. Refus conservés et DELETE indépendants vérifiés ; concurrence restante suivie en 13.
 
 ## À valider par Cyric
 - ~~`GET /api/bets` public~~ : Cyric a répondu de le garder ainsi (13 nov.).
@@ -68,3 +74,4 @@ Itération 3 — backlog 14 (identifiant d'équipe hérité qui fait planter la 
 - Itération 2 : backlog 1 terminé (refus partiel signalé, DELETE non bloqués) ; 32 → 34 tests réussis, 5 → 3 TODO.
 - Revue 2 (Codex) : À CORRIGER ; backlog 1 confirmé (ancien 0/2, actuel 2/2), nouveaux 14 et 13 ; 37 réussis + 6 TODO ; itération 3, TOUR_CLAUDE.
 - Itération 3 : backlog 14 corrigé (page qui plante sur un id d'équipe hérité, refusé par le serveur) ; 37 → 39 tests réussis, 6 → 4 TODO.
+- Revue 3 (Codex) : À CORRIGER ; backlog 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO ; itération 4, TOUR_CLAUDE.
