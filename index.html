@@ -8,35 +8,30 @@
 /* Palette sombre, typographie système et surfaces sobres. */
   :root {
     color-scheme: dark;
-    --background: #08090b;
-    --foreground: #f2f2f7;
-    --muted-foreground: #a0a2ad;
-    --card: #15161b;
-    --border: #2b2d35;
+    --background: #0b1019;
+    --foreground: #edf3fc;
+    --muted-foreground: #a8b6ca;
+    --card: #131d2c;
+    --border: #2c3b50;
     --success: #69dfa0;
     --destructive: #ff858c;
     --warning: #f1ce79;
-    --accent: #88b7ff;
-    --radius: 22px;
+    --accent: #6ce5d4;
+    --radius: 18px;
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
   }
   * { box-sizing: border-box; }
   html { scroll-padding-top: 100px; background: var(--background); }
   body {
-    margin: 0 auto; max-width: 1240px; padding: 48px 32px 64px;
+    margin: 0 auto; max-width: 1240px; padding: 36px 32px 64px;
     background: transparent; color: var(--foreground);
-    font-family: var(--font-sans); font-size: 14px; line-height: 1.55;
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  /* Photo de fond, assombrie pour garder le texte lisible. */
-  body::before {
-    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(10,11,15,.45) 0%, rgba(10,11,15,.78) 40%, rgba(10,11,15,.93) 100%),
-      url("bg.jpg") center 18% / cover no-repeat;
-  }
-  h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 40px); line-height: 1.2; font-weight: 650; letter-spacing: -.055em; }
+  /* Surfaces opaques : contraste constant, sans dépendre de la photo. */
+  body::before { content: none; }
+  h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 40px); line-height: 1.2; font-weight: 650; letter-spacing: -.035em; }
   h2 { margin: 32px 0 12px; font-size: 21px; line-height: 1.3; font-weight: 600; letter-spacing: -.035em; }
   h2 .sub { margin-left: 10px; font-weight: 400; letter-spacing: 0; }
   #meta, #maj { font-size: 12px; line-height: 1.7; }
@@ -53,7 +48,7 @@
   }
   input, select, textarea { color: var(--foreground); background: #101115; border: 1px solid #3a3c46; border-radius: 10px; }
   input:hover, select:hover, textarea:hover { border-color: #646773; }
-  input::placeholder, textarea::placeholder { color: #828591; }
+  input::placeholder, textarea::placeholder { color: #a8b6ca; }
   .live { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; margin-left: 12px; padding: 5px 9px; border: 1px solid #274234; border-radius: 999px; background: #13251b; color: var(--success); font-size: 10px; font-weight: 600; letter-spacing: .01em; line-height: 1.2; }
   .live i { width: 6px; height: 6px; background: currentColor; border-radius: 50%; box-shadow: 0 0 8px #69dfa033; }
   .live.late { color: var(--warning); background: #292316; border-color: #51452a; }
@@ -122,7 +117,7 @@
   .plsel select { max-width: 100%; min-height: 42px; padding: 8px 12px; font-size: 13px; }
   table.pl td, table.pl th { padding: 12px; }
   table.pl input { width: 64px; min-height: 36px; padding: 7px; text-align: right; font-size: 13px; }
-  table.pl tr.out td { opacity: .55; }
+  table.pl tr.out td { color: var(--muted-foreground); }
   .pname small { color: var(--muted-foreground); }
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0 24px; }
   .kpi { padding: 19px 18px; background: var(--card); border: 1px solid #ffffff12; border-radius: 18px; }
@@ -197,6 +192,142 @@
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  /* Refonte mobile : navigation persistante, saisie et lecture des données. */
+  html { scroll-padding-top: 90px; }
+  body { background: var(--background); }
+  h1 { font-weight: 750; }
+  h1::before { content: "NBA / ANALYSE & SUIVI"; display: block; margin-bottom: 10px; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.5; }
+  h2 { font-weight: 700; letter-spacing: -.02em; }
+  #meta, #maj { color: var(--muted-foreground); }
+  #maj b { color: var(--foreground); }
+  .live { background: #15352b; border-color: #31624c; font-size: 11px; }
+  nav.menu { top: 12px; width: 100%; margin: 26px 0 28px; gap: 6px; padding: 6px; background: #131d2c; border-color: var(--border); border-radius: 16px; box-shadow: 0 8px 24px #0004; }
+  nav.menu button { min-height: 46px; flex: 1; gap: 4px; color: var(--muted-foreground); font-size: 14px; border-radius: 10px; }
+  nav.menu button.on { color: #0b2928; background: var(--accent); box-shadow: none; }
+  nav.menu button:hover:not(.on) { color: var(--foreground); background: #22334a; }
+  nav.menu .count { opacity: 1; font-size: 11px; }
+  input, select, textarea { background: #0c1421; border-color: #52627a; border-radius: 9px; }
+  button, input:not([type="hidden"]), select { min-height: 44px; }
+  input.odds, table.pl input { min-height: 44px; font-size: 16px; }
+  .basis button, .btn, .seg button, .chips button { min-height: 44px; font-size: 13px; background: #19273a; color: #dbe5f3; border-color: #384b64; }
+  .basis button.on, .chips button.on { background: #163c39; border-color: #51b6aa; color: #a2f2e6; }
+  .bank { display: grid; grid-template-columns: 170px 90px minmax(0, 1fr); gap: 12px 16px; margin: 0; padding: 12px 16px; background: #131d2c; border: 1px solid var(--border); color: #dbe5f3; }
+  .bank:first-of-type { margin-top: 20px; border-radius: 12px 12px 0 0; border-bottom: 0; }
+  .bank:last-of-type { border-radius: 0 0 12px 12px; }
+  .bank span { color: var(--muted-foreground); line-height: 1.6; }
+  .bank input { width: 90px; }
+  .basis { margin: 20px 0; gap: 8px; }
+  .games { gap: 20px; }
+  .game { padding: 22px; border-color: #304057; box-shadow: 0 8px 24px #0002; }
+  .game .when { margin: -22px -22px 0; padding: 12px 22px; border-bottom: 1px solid var(--border); background: #19273a; border-radius: 17px 17px 0 0; color: #c1cee0; font-size: 12px; }
+  .side { padding: 20px 0; }
+  .side .name { font-size: 16px; }
+  .side .name small { font-size: 12px; }
+  .side .proj { color: #a2f2e6; font-size: 32px; font-weight: 700; letter-spacing: -.04em; }
+  .side .line { gap: 10px 12px; font-size: 13px; }
+  .side .line > span:first-child { flex-basis: 100%; }
+  .side .line > label { flex-basis: 100%; justify-content: space-between; padding: 10px 12px; background: #0c1421; border: 1px solid var(--border); border-radius: 10px; }
+  .side .line > .src { flex-basis: 100%; }
+  .side .line > .ev { flex: 1; }
+  .side .line b, .stake { color: var(--foreground); }
+  button.addbet { min-height: 44px; padding: 10px 16px; background: #2457a0; color: #fff; border-color: #5689cc; font-size: 13px; }
+  button.addbet:hover { background: #3067b4; }
+  button.addbet.hot { color: #10281b; background: #69dfa0; border-color: #8eeab8; }
+  button.reset { min-width: 44px; min-height: 44px; }
+  .badge { padding: 4px 8px; font-size: 11px; border-radius: 6px; }
+  .badge.no { background: #232e40; color: #c1cee0; border-color: #43536a; }
+  .foot { padding-top: 16px; font-size: 12px; line-height: 1.8; }
+  .mkt { padding: 12px; margin-top: 10px; background: #0c1421; border: 1px solid var(--border); border-radius: 10px; }
+  .mkt .addbet { display: flex; width: 100%; margin: 10px 0 0; }
+  .mkt:last-of-type:not(:has(.addbet)) { padding: 0; background: transparent; border: 0; }
+  .info { padding-top: 10px; }
+  .scroll { position: relative; isolation: isolate; background: #131d2c; border-color: #384b64; max-height: 72dvh; scrollbar-color: #637c9c #0c1421; }
+  .scroll::before { content: "↔ Faites défiler pour voir toutes les colonnes"; display: block; position: sticky; left: 0; width: 100%; padding: 10px 14px; color: var(--muted-foreground); background: #131d2c; font-size: 12px; line-height: 20px; }
+  table { font-variant-numeric: tabular-nums; }
+  th, td { height: 48px; border-color: var(--border); }
+  th { position: sticky; top: 0; z-index: 2; height: 46px; color: #c1cee0; background: #203047; font-size: 12px; font-weight: 600; }
+  th.sorted { color: #a2f2e6; background: #163c39; }
+  td { background: #131d2c; }
+  tbody tr:nth-child(even) td { background: #172336; }
+  tbody tr:hover td { background: #24364e; }
+  th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; border-right: 1px solid #43536a; }
+  th:first-child { z-index: 3; }
+  td.team { display: table-cell; }
+  td.team img { vertical-align: middle; margin-right: 10px; }
+  table.pl td, table.pl th { padding: 12px 14px; }
+  table.pl td:nth-child(6) { color: #a2f2e6; }
+  table.pl tr.out td { background: #192230; }
+  .plsel { padding: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+  .plsel select { min-height: 44px; font-size: 14px; }
+  .kpi { padding: 20px; border-radius: 14px; border-color: var(--border); }
+  .kpi .l { font-size: 12px; }
+  .kpi .v { font-size: 28px; font-weight: 700; }
+  .kpi:has(.pos) { border-top: 2px solid var(--success); }
+  button.del { min-width: 44px; min-height: 44px; }
+  .empty, details, .msum { background: #131d2c; border-color: #384b64; }
+  .empty { line-height: 1.8; }
+  summary { min-height: 44px; align-content: center; color: #dbe5f3; }
+  .modal { background: #060b14cc; }
+  .modal form { background: #131d2c; border-color: #52627a; border-radius: 20px; }
+  .modal label, .lbl { color: #c1cee0; }
+  .mhead .x { width: 44px; height: 44px; min-width: 44px; background: #26374f; color: var(--foreground); }
+  .seg { background: #0c1421; }
+  .seg button.on { background: #324966; }
+  .btn.main { background: var(--accent); border-color: var(--accent); color: #0b2928; }
+  .btn.main:hover { background: #a2f2e6; border-color: #a2f2e6; }
+  .toast { background: #163c39; color: #edf3fc; border-color: #51b6aa; }
+  @media (max-width: 600px) {
+    html { scroll-padding-top: 16px; scroll-padding-bottom: 110px; }
+    body { padding: 24px 16px calc(112px + env(safe-area-inset-bottom)); }
+    h1 { font-size: 27px; letter-spacing: -.035em; }
+    h1::before { font-size: 10px; margin-bottom: 8px; }
+    .live { font-size: 10px; margin-left: 4px; }
+    #meta, #maj { font-size: 12px; line-height: 1.65; }
+    #maj { margin-top: 5px; }
+    nav.menu { position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 10; max-width: none; width: 100%; margin: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); gap: 4px; border: 0; border-top: 1px solid #43536a; border-radius: 0; background: #131d2c; box-shadow: 0 -8px 28px #0006; }
+    nav.menu button { min-height: 52px; padding: 8px 3px; font-size: 12px; }
+    nav.menu .count { font-size: 10px; line-height: 1.3; }
+    .view { margin-top: 26px; }
+    .bank { grid-template-columns: minmax(0, 1fr) 86px; gap: 8px 12px; padding: 12px; font-size: 13px; }
+    .bank span { grid-column: 1 / -1; font-size: 12px; }
+    .bank input { width: 86px; }
+    .basis { gap: 6px; }
+    .basis button { padding: 9px 11px; font-size: 12px; }
+    .games { gap: 18px; }
+    .game { padding: 16px; border-radius: 16px; }
+    .game .when { margin: -16px -16px 0; padding: 10px 16px; border-radius: 15px 15px 0 0; }
+    .side { padding: 18px 0; }
+    .side .name { font-size: 15px; }
+    .side .name img { width: 28px; height: 28px; }
+    .side .name small { flex-basis: 100%; }
+    .side .proj { font-size: 30px; }
+    .side .line { font-size: 13px; }
+    .scroll { border-radius: 12px; max-height: 65dvh; }
+    th:first-child, td:first-child { min-width: 126px; max-width: 140px; white-space: normal; overflow-wrap: anywhere; }
+    td.team img { display: block; margin: 0 0 6px; }
+    .plsel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+    .plsel select { min-width: 0; width: 100%; font-size: 16px; padding: 8px; }
+    #plGame { grid-column: 1 / -1; }
+    .kpis { gap: 10px; }
+    .kpi { padding: 16px 14px; }
+    .kpi .v { font-size: 26px; }
+    .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .modal form { border-radius: 22px 22px 0 0; padding: 20px 18px max(24px, env(safe-area-inset-bottom)); max-height: 94dvh; }
+    .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  }
+
+  .settings { margin: 18px 0 0; padding: 0; border-radius: 12px; }
+  .settings > summary { padding: 12px 16px; font-size: 13px; font-weight: 600; }
+  .settings .bank:first-of-type { margin-top: 0; border-radius: 0; border-top: 1px solid var(--border); }
+  .settings .bank { border-left: 0; border-right: 0; }
+  .settings .bank:last-of-type { border-bottom: 0; }
+  @media (max-width: 600px) {
+    #upcoming > .basis { display: grid; grid-template-columns: 1fr 1fr; font-size: 12px; }
+    #upcoming > .basis button:first-child { grid-column: 1; }
+    .plsel { grid-template-columns: 1fr; }
+    .plsel select { grid-column: 1; }
   }
 </style>
 </head>
@@ -636,7 +767,7 @@
     '<section class="view" id="view-matchs">' + stale +
     "<h2>Matchs à venir</h2>" +
     '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.</div>' +
-    bankHtml() +
+    '<details class="settings"><summary>Réglages du modèle et bankroll</summary>' + bankHtml() + "</details>" +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
     "</section>" +
     '<section class="view" id="view-joueurs"></section>' +
