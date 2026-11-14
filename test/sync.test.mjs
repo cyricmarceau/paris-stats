@@ -91,7 +91,7 @@ test('DELETE seul : un pari supprimé reste masqué après adopt et sort de l’
   assert.deepEqual(p.state().pendDel, []);
 });
 
-test('refus partiel : ne pas annoncer que tous les paris sont enregistrés', { todo: 'backlog 1' }, async () => {
+test('refus partiel : ne pas annoncer que tous les paris sont enregistrés', async () => {
   const api = fakeApi();
   const p = loadPage({ data: sampleData(), storage: storageWith([okBet, longName]), fetch: api.fetch });
   await flush();
@@ -100,7 +100,7 @@ test('refus partiel : ne pas annoncer que tous les paris sont enregistrés', { t
   assert.match(p.state().sync.msg, /refus/i);
 });
 
-test('refus total : les DELETE indépendants doivent tout de même être envoyés', { todo: 'backlog 1' }, async () => {
+test('refus total : les DELETE indépendants doivent tout de même être envoyés', async () => {
   const api = fakeApi(); api.server.push(okBet);
   const storage = storageWith([longName]);
   storage['paris-stats-pend-del'] = JSON.stringify([okBet.id]);

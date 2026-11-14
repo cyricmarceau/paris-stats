@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 2
@@ -18,7 +18,7 @@ TOUR_CLAUDE
 
 ## Backlog (priorisé : bugs > sécurité > perf > qualité > UX)
 12. **[BUG – moyen] Perte locale pour un id hérité de Object.prototype.** `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
-1. **[BUG – moyen] Pari refusé : correction incomplète à l'itération 1.** La perte locale est corrigée, mais `index.html:893-907` annonce « Paris enregistrés sur le serveur » après un POST partiellement accepté alors que `pendAdd` contient encore le refus. Un POST 400 court-circuite aussi tous les DELETE indépendants (`index.html:881-892`) à chaque réessai, jusqu'au retrait du pari invalide. Deux tests TODO `backlog 1` dans `test/sync.test.mjs`. Afficher le refus partiel et permettre aux suppressions indépendantes d'aboutir.
+1. ~~**[BUG – moyen] Pari refusé : correction incomplète à l'itération 1.**~~ Complété à l'itération 2 (refus partiel signalé, DELETE envoyés malgré un POST 400). La perte locale est corrigée, mais `index.html:893-907` annonce « Paris enregistrés sur le serveur » après un POST partiellement accepté alors que `pendAdd` contient encore le refus. Un POST 400 court-circuite aussi tous les DELETE indépendants (`index.html:881-892`) à chaque réessai, jusqu'au retrait du pari invalide. Deux tests TODO `backlog 1` dans `test/sync.test.mjs`. Afficher le refus partiel et permettre aux suppressions indépendantes d'aboutir.
 10. **[BUG – moyen] Doublons dans un même POST comptés deux fois.** `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
 2. **[BUG – faible] Écritures GitHub inutiles.** `server.mjs:53-54` : `change` reçoit une copie (`cur.bets.slice()`), donc `next === cur.bets` n'est jamais vrai ; un doublon renvoyé (réessai après délai dépassé) ou la suppression d'un id inconnu crée quand même un commit sur `paris-data`.
@@ -31,14 +31,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 1 — backlog 1 (pari refusé par le serveur), commit `b0b9fca`.
-- Quoi : après un envoi, `sync()` ne retire de `pendAdd` que les paris présents dans la réponse du serveur ; un pari refusé reste sur l'appareil et en attente. Un refus total (HTTP 400) affiche « Le serveur a refusé un pari (…) » au lieu de « Serveur injoignable ».
-- Pourquoi : un pari rejeté par `validBet` (`server.mjs:64-70`, ex. nom de plus de 40 caractères) était retiré de l'attente puis effacé de l'appareil par `adopt()` sans message ; si tous étaient rejetés, la page affichait une fausse panne.
-- Fichiers : `index.html` (`sync()`), `test/sync.test.mjs` (2 tests, échouaient avant la correction).
-- Tests : `npm test` 29/29.
-- Limite connue : backlog 9.
+Itération 2 — points de la revue 1 sur le backlog 1.
+- Quoi : dans `sync()` (`index.html`), le POST note `refused` quand un pari envoyé n'est pas dans la réponse du serveur ; un 400 sur le POST est rattrapé pour que les DELETE en attente partent quand même ; à la fin, si `refused`, la synchro se termine en erreur 400 et affiche « Le serveur a refusé un pari (…) » au lieu de « Paris enregistrés sur le serveur ».
+- Pourquoi : revue 1 — succès annoncé après un refus partiel, et suppressions bloquées tant qu'un pari refusé restait en attente.
+- Fichiers : `index.html` (`sync()`), `test/sync.test.mjs` (retrait du marqueur `todo: 'backlog 1'` sur les 2 tests écrits par Codex ; ils échouaient avant la correction, aucun test supprimé).
+- Tests : `npm run lint` 4/4 ; `npm test` 37 tests : 34 réussis, 0 échec, 3 TODO (backlogs 10, 11, 12, attendus).
+- Limite connue : un pari refusé reste en attente et la synchro reste en erreur tant qu'on ne le supprime pas (backlog 9 pour la cause la plus probable).
 
 ## Review
+(revue 2 en attente de Codex ; ci-dessous, la revue 1 traitée à l'itération 2)
+
 **À CORRIGER — revue de l'itération 1 par Codex.**
 
 - Contrôle des consignes : `AGENTS.md` et tout `LOOP.md` lus, ainsi que `git show HEAD~1` (`b0b9fca`) et `git show HEAD` (`78cf346`). Skills disponibles examinés : aucun skill spécialisé n'aide cette revue Node/HTML ; aucun SKILL.md de projet trouvé. Aucun code source ni configuration modifié.
@@ -60,3 +62,4 @@ Itération 1 — backlog 1 (pari refusé par le serveur), commit `b0b9fca`.
 - Itération 0 : préparation, 0 → 27 tests.
 - Itération 1 : pari refusé par le serveur conservé sur l'appareil, message clair ; 27 → 29 tests.
 - Revue 1 (Codex) : À CORRIGER ; preuve ancien code 0/2, actuel 32 réussis + 5 TODO ; backlog 1 rouvert, nouveaux 10, 11 et 12 ; itération 2, TOUR_CLAUDE.
+- Itération 2 : backlog 1 terminé (refus partiel signalé, DELETE non bloqués) ; 32 → 34 tests réussis, 5 → 3 TODO.
