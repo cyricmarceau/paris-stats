@@ -179,3 +179,21 @@ test('backlog 17: malformed optional player name must be rejected before storage
   assert.equal(r.status, 400);
   assert.equal(s.github().puts, 0);
 });
+
+test('optional probability boundaries and player name types match the page contract', async () => {
+  const s = await startServer();
+  for (const [i, p] of [undefined, null, 0, 0.5, 1].entries()) {
+    const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: {
+      bet: validBet({ id: 'boundary-' + i, p, playerName: i === 0 ? undefined : i === 1 ? null : 'Joueur' })
+    } });
+    assert.equal(r.status, 200, `p=${p}`);
+  }
+  const puts = s.github().puts;
+  for (const p of [-0.01, 1.01, '0.5', false, [], {}]) {
+    assert.equal((await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({ p }) } })).status, 400);
+  }
+  for (const playerName of [123, false, [], 'x'.repeat(81)]) {
+    assert.equal((await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({ playerName }) } })).status, 400);
+  }
+  assert.equal(s.github().puts, puts);
+});

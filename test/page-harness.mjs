@@ -9,10 +9,13 @@ if (scripts.length !== 1) throw new Error(`index.html : 1 script en ligne attend
 export const pageScript = scripts[0];
 
 function element() {
+  const listeners = new Map();
   return {
     innerHTML: '', textContent: '', value: '', hidden: false, title: '', style: {},
     classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
-    addEventListener() {}, querySelector() { return element(); }, querySelectorAll() { return []; },
+    addEventListener(type, fn) { if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push(fn); },
+    dispatchEvent(event) { for (const fn of listeners.get(event.type) || []) fn(event); },
+    querySelector() { return element(); }, querySelectorAll() { return []; },
     getAttribute() { return null; }, setAttribute() {}, focus() {}, closest() { return null; }
   };
 }
