@@ -56,3 +56,12 @@ test('backlog 19 : un joueur avec points et minutes arrondies a zero conserve se
   assert.ok(store.players['999'], 'joueur ayant marque 2 points efface a cause de ses minutes arrondies');
   assert.equal(store.players['999'].g[0][6], 2);
 });
+
+test('backlog 20 : stats joueur tronquées ne doivent pas devenir des zéros définitifs', {todo:'backlog 20'}, () => {
+  const s={boxscore:{players:[block('1',100),block('2',200)]}};
+  s.boxscore.players[0].statistics[0].athletes[0].stats=['30'];
+  const store={players:{}};
+  // Rejeter la feuille avant de la marquer done, afin de réessayer au prochain passage.
+  assert.throws(()=>parseBox(s,game,store));
+  assert.deepEqual(store.players,{});
+});

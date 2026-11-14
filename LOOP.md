@@ -1,10 +1,10 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CODEX
+TOUR_CLAUDE
 
 ## Itération
-7
+8
 
 ## Projet (analyse de la préparation)
 - Site statique : `index.html` (CSS + un script en ligne, ~1450 lignes), données générées `data.js`, `players.js`, `h2h.js`, `h2hbox.js`.
@@ -28,12 +28,14 @@ TOUR_CODEX
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
 13. **[BUG – moyen] Ajout pendant une synchro : succès sans envoi.** `index.html:867,880,900-902,1349` : pendant que le POST du premier pari attend, le formulaire ajoute un second et appelle sync(), qui retourne immédiatement. Le second reste local dans bets/pendAdd, mais hors du lot toSend. À la réponse, aucune relance et syncHtml annonce « Paris enregistrés sur le serveur » (`index.html:916`). Reproduit avec POST différé, test TODO `backlog 13`. Préexistant au correctif ; traiter les changements arrivés en cours de route ou signaler leur attente. Contrôler aussi suppression/import pendant la synchro.
 19. **[BUG - moyen] Un joueur ayant marque peut etre efface si ses minutes sont arrondies a zero.** `fetch-extras.mjs:36,55-56` tronque les minutes puis ignore toute ligne <= 0, meme avec `didNotPlay` absent et 2 points marques. Reproduction synthetique dans `test/fetch-extras.test.mjs:51` (TODO backlog 19) : ajouter un joueur avec stats ['0','2','0','0','0-0'] a une feuille complete ; parseBox ne cree aucune entree pour lui. Les minutes '0:45' sont aussi tronquees a 0. Le match est ensuite marque done (`fetch-extras.mjs:113`), sans nouvel essai. Pour un joueur deja connu, la ligne manquante devient ensuite ? n'a pas joue ? et pari rembourse (`index.html:941-942,950`), au lieu du resultat de ses points. Conserver les apparitions etablies par les stats et traiter les durees sans perdre les secondes. Payloads ESPN de production non consultes ; frequence reelle non mesuree. Distinct des identifiants et champs facultatifs.
+20. **[BUG – moyen] Une ligne de stats tronquée est enregistrée comme zéro puis figée.** `fetch-extras.mjs:36,53-58,113` accepte un joueur ayant 30 minutes mais un tableau `stats: ["30"]` : points/rebonds/assists/3pts absents deviennent tous 0 via `int(undefined)`. `parseBox` enregistre cette ligne, puis `main` marque le match done sans réessai. Les props peuvent être réglés à tort sur ces zéros (`index.html:940-950`) et les moyennes sont faussées. Nouveau test TODO backlog 20 (`test/fetch-extras.test.mjs:60`) : une feuille autrement complète doit être refusée avant toute mutation si une ligne jouée manque de stats requises. Reproduction synthétique confirmée ; occurrence ESPN réelle non consultée. Distinct de 19 : minutes valides, colonnes de valeurs absentes.
 2. **[BUG – faible] Écritures GitHub inutiles.** `server.mjs:53-54` : `change` reçoit une copie (`cur.bets.slice()`), donc `next === cur.bets` n'est jamais vrai ; un doublon renvoyé (réessai après délai dépassé) ou la suppression d'un id inconnu crée quand même un commit sur `paris-data`.
 3. **[BUG – faible] JSON invalide → 500 au lieu de 400.** `server.mjs:92` lève une SyntaxError attrapée en 500 (`server.mjs:121-123`).
 4. **[SÉCURITÉ – faible] Messages d'erreur internes renvoyés au client.** `server.mjs:123` renvoie `error.message` brut (ex. « Lecture : HTTP 401 » de GitHub).
 5. **[PERF – faible] ~620 Ko de données joueurs/face-à-face chargés à chaque visite**, même si on ne quitte pas l'onglet Matchs (`players.js`, `h2h.js`, `h2hbox.js` en `<script>` bloquants).
 6. **[QUALITÉ – faible] `fetch-data.mjs` non testable** : `main()` s'exécute à l'import et `oddsFor` / `numeric` ne sont pas exportés (`fetch-data.mjs:28`, `fetch-data.mjs:111`). La lecture des cotes ESPN (sens de l'écart) n'a donc aucun test.
 7. **[QUALITÉ – faible] Horaires de mise à jour dupliqués** : `REFRESH_UTC` dans `index.html` doit être modifié à la main en même temps que les `cron` du workflow.
+21. **[QUALITÉ – faible] Historique GitHub : le message cite aussi les paris écartés.** `server.mjs:119` construit le message depuis `good`, avant la déduplication : deux paris valides de même id, parieurs Premier et Second, ne stockent que Premier mais écrivent « Pari ajouté (Premier, Second) ». Le réessai d’un pari existant crée aussi un message ajout trompeur (commit inutile déjà suivi en 2). Nouveau test TODO backlog 21 (`test/server.test.mjs:225`), messages capturés par `test/fake-github.mjs`. Construire le message depuis les ajouts effectifs ; aucune perte de pari démontrée ici.
 8. **[UX – faible] Bandeau « données vieilles »** dans `index.html` dit de lancer `node fetch-data.mjs`, inutile sur téléphone (changement visible → voir « À valider »).
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
@@ -46,25 +48,25 @@ Itération 7 — backlog 10 (doublons dans un même POST), premier élément ouv
 - Limite connue : les doublons déjà enregistrés dans `bets.json` (s'il y en a) ne sont pas nettoyés ; ce correctif empêche seulement d'en créer.
 
 ## Review
-(revue 7 en attente de Codex ; ci-dessous, la revue 6)
+**À CORRIGER — revue 7 par Codex ; correctif 10 accepté, nouveaux 20 et 21 à traiter.**
 
-**A CORRIGER - revue 6 par Codex ; correctif 18 accepte, nouveau 19 a traiter.**
+- AGENTS.md, LOOP.md et git show a18d608 lus. Catalogue des skills vérifié : aucun skill spécialisé utile à cette revue HTML/Node ; aucun SKILL.md de projet trouvé. Branche auto-improve/2026-11-13 conservée ; aucune source modifiée, aucun push.
+- **Preuve 10** : serveur a18d608^ copié temporairement sous test/ avec le test actuel (sans TODO) et le même faux GitHub. node --test --test-name-pattern="un POST contenant" : parent **0/1, exit 1** (2 au lieu de 1), HEAD **1/1, exit 0**. Copies temporaires retirées. Aucun test existant supprimé ou affaibli.
+- **API** : server.mjs:111-119 filtre la validité avant les doublons ; première copie valide conservée. Trois nouveaux tests verts couvrent copies différentes, réessai avec copie modifiée, invalide avant/après valide avec même id ; réponse et fichier GitHub vérifiés. Les doublons déjà stockés ne sont pas nettoyés (limite annoncée). Aucun défaut bloquant trouvé dans la ligne modifiée.
+- **Client** : index.html:861-870,890-894 : adopt() choisit la dernière copie locale par id avant POST, et conserve les closeOdds/closeLine locaux ; ce comportement précède le correctif. Trois tests sur copies différentes : dernière copie valide envoyée une fois, ou dernière copie invalide gardée localement et signalée refusée. Un quatrième test avec pendAdd dupliqué confirme un POST de deux copies, une seule en retour, adopt() sans doublon et kept vidant les deux occurrences de l’attente. Pas de succès trompeur constaté dans ces cas. API directe = première copie valide ; copie locale avant envoi = dernière. Tests avec faux fetch, sans navigateur ni production.
+- **Nouveau 20 (moyen)** : fetch-extras.mjs:36,53-58,113 transforme une ligne jouée tronquée en zéros définitifs ; test TODO rouge. Conséquence sur le règlement lue dans index.html:940-950 ; fréquence réelle non mesurée.
+- **Nouveau 21 (faible, qualité)** : server.mjs:119, message construit depuis good : « Premier, Second » pour un seul ajout Premier. Test TODO rouge avec capture du message PUT. Le commit inutile au réessai est déjà en 2, non renuméroté.
+- **Checks** : npm run lint initial **4/4, exit 0** ; npm test initial **69 réussis + 3 TODO / 72, exit 0**. Final : npm run lint **4/4, exit 0** ; npm test **76 réussis + 5 TODO / 81, exit 0**, aucun échec bloquant ; git diff --check vert. Les deux nouveaux TODO échouent pour les causes attendues. Aucun build ni typecheck.
+- Aucun arrêt : sept itérations terminées, backlog encore ouvert et amélioration mesurable (10 rouge sur parent, vert sur HEAD). **Itération 8, TOUR_CLAUDE** ; priorité ouverte 11/13/19/20.
 
-- AGENTS.md, LOOP.md et git show 8eec8c4 lus. Catalogue des skills verifie : aucun skill specialise utile pour cette revue HTML/Node ; aucun SKILL.md de projet trouve. Aucun changement source, aucun push, branche auto-improve/2026-11-13 conservee.
-- **Preuve 18** : source 8eec8c4^:index.html copiee temporairement sous test/ avec le harness et le test actuels. Commande node --test --test-name-pattern="backlog 18" : parent **0/1, exit 1** (Under 100,5 garde p=0,537778), HEAD **1/1, exit 0**. Copies temporaires retirees ; aucun test supprime ou affaibli.
-- **Formulaire** : index.html:1256-1271,1280-1292,1303-1310,1344,1363-1368. Sept tests ajoutes pilotent les vrais gestionnaires : spread change de signe sans invalider p, total/prop changent de cote avec p complementaire, ml garde sa probabilite sans ligne. Spread/total/props : ligne vide ou non numerique refusee a la soumission, nouvelle ligne enregistree avec p=null, resume ? Ligne modifiee ? et suggestion retiree. Ressaisir la valeur initiale avec une autre representation numerique restaure p, resume et suggestion. Props ouverts depuis les attributs de la table joueurs rendue avec ligne stockee 20,5. La mise deja saisie reste conservee ; la puce de suggestion disparait bien. Aucun blocage ni regression trouve dans le diff.
-- **Merge hors boucle d369518** : diff contre 8eec8c4 limite a AGENTS.md (+1 revision par PR), badge revision 20 et test/revision.test.mjs. Aucun chevauchement avec le JS du correctif, aucun marqueur de conflit, test de revision vert. Aucun navigateur ni deploiement consulte.
-- **Nouveau 19, moyen** : fetch-extras.mjs:55-56 perd un joueur ayant marque 2 points avec minutes arrondies a zero ; reproduction parseBox rouge sous TODO backlog 19. Consequence de reglement lue dans index.html:941-950. Reponse ESPN reelle non consultee ; ne pas confondre la preuve locale avec une occurrence observee en production.
-- **Checks executes** : npm run lint **4/4, exit 0** ; npm test initial **61 reussis + 3 TODO / 64**, final **68 reussis + 4 TODO / 72, exit 0**, aucun echec bloquant. node --test test/form.test.mjs **15/15**. git diff --check vert. Aucun build ni typecheck.
-- Aucun arret : six iterations terminees, backlog encore ouvert, amelioration mesurable (18 rouge sur parent, vert sur HEAD). **Iteration 7, TOUR_CLAUDE** ; priorites 10/11/13 puis 19.
+Revues précédentes condensées :
 
-Revues precedentes condensees :
-
-- Revue 1 : A CORRIGER ; refus partiel de 1, nouveaux 10/11/12 ; 32 reussis + 5 TODO.
-- Revue 2 : A CORRIGER ; 1 confirme (parent 0/2, actuel 2/2), nouveaux 14/13 ; 37 reussis + 6 TODO.
-- Revue 3 : A CORRIGER ; 14 confirme (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 reussis + 7 TODO.
-- Revue 4 : A CORRIGER ; 15/12/16 acceptes (parent 0/4, HEAD 4/4), nouveau 17 ; 47 reussis + 5 TODO.
-- Revue 5 : A CORRIGER ; 17 confirme (parent 0/4, HEAD 4/4), nouveau 18 ; 59 reussis + 4 TODO. Compatibilite des probabilites examinee ; closeOdds reste un champ facultatif non valide, sans ticket supplementaire.
+- Revue 1 : À CORRIGER ; refus partiel de 1, nouveaux 10/11/12 ; 32 réussis + 5 TODO.
+- Revue 2 : À CORRIGER ; 1 confirmé (parent 0/2, actuel 2/2), nouveaux 14/13 ; 37 réussis + 6 TODO.
+- Revue 3 : À CORRIGER ; 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO.
+- Revue 4 : À CORRIGER ; 15/12/16 acceptés (parent 0/4, HEAD 4/4), nouveau 17 ; 47 réussis + 5 TODO.
+- Revue 5 : À CORRIGER ; 17 confirmé (parent 0/4, HEAD 4/4), nouveau 18 ; 59 réussis + 4 TODO. closeOdds facultatif non validé noté sans ticket supplémentaire.
+- Revue 6 : À CORRIGER ; 18 accepté (parent 0/1, HEAD 1/1), sept tests formulaire verts, merge hors boucle d369518 vérifié ; nouveau 19 ; 68 réussis + 4 TODO. Aucun navigateur ni déploiement consulté.
 
 ## À valider par Cyric
 - ~~`GET /api/bets` public~~ : Cyric a répondu de le garder ainsi (13 nov.).
@@ -89,3 +91,5 @@ Revues precedentes condensees :
 
 - Revue 6 (Codex) : A CORRIGER ; 18 confirme (parent 0/1, HEAD 1/1), sept tests de formulaire supplementaires, nouveau 19 (minutes arrondies et joueur efface) ; 68 reussis + 4 TODO ; iteration 7, TOUR_CLAUDE.
 - Itération 7 : backlog 10 corrigé (un même id envoyé deux fois n'est enregistré qu'une fois) ; 68 → 69 tests réussis, 4 → 3 TODO.
+
+- Revue 7 (Codex) : À CORRIGER ; 10 confirmé (parent 0/1, HEAD 1/1), sept tests complémentaires verts, nouveaux 20/21 sous TODO ; 76 réussis + 5 TODO / 81 ; itération 8, TOUR_CLAUDE.

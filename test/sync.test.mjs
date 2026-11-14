@@ -200,3 +200,47 @@ test('400 POST sans rapport avec les paris : DELETE envoyé, motif générique p
   assert.match(p.state().sync.msg, /refusé un pari/);
   assert.doesNotMatch(p.document.getElementById('syncBox').innerHTML, /En-tête invalide/);
 });
+
+for (const entries of [
+  [okBet, {...okBet, who:'Will',stake:99}],
+  [{...okBet,who:'x'.repeat(41)}, okBet],
+  [okBet, {...okBet,who:'x'.repeat(41)}]
+]) {
+  test('revue 7 : adopt/kept avec copies différentes : '+entries.map(b=>b.who).join('/'), async () => {
+    const api=fakeApi();
+    // Un seul id en attente, comme les chemins normaux ; doublons locaux historiques simulés.
+    const storage=storageWith(entries);
+    storage['paris-stats-pend-add']=JSON.stringify([okBet.id]);
+    const p=loadPage({data:sampleData(),storage,fetch:api.fetch});
+    await flush();
+    // adopt() choisit la DERNIERE copie locale avant tout POST (dict par id).
+    const last=entries.at(-1);
+    if (last.who.length>40) {
+      assert.equal(api.server.length,0);
+      assert.deepEqual(p.state().bets,[last]);
+      assert.deepEqual(p.state().pendAdd,[okBet.id]);
+      assert.equal(p.state().sync.state,'off');
+    } else {
+      assert.deepEqual(api.server,[last]);
+      assert.deepEqual(p.state().bets,api.server);
+      assert.deepEqual(p.state().pendAdd,[]);
+      assert.equal(p.state().sync.state,'ok');
+    }
+  });
+}
+
+test('revue 7 : lot avec id en attente dupliqué revient à un seul pari après kept', async () => {
+  const entries=[okBet,{...okBet,who:'Will',stake:99}], api=fakeApi();
+  let posted;
+  const p=loadPage({data:sampleData(),storage:storageWith(entries),fetch(url,opts) {
+    if (opts.method==='POST') posted=JSON.parse(opts.body).bets;
+    return api.fetch(url,opts);
+  }});
+  await flush();
+  assert.equal(posted.length,2);
+  assert.deepEqual(posted,[entries[1],entries[1]]);
+  assert.deepEqual(api.server,[entries[1]]);
+  assert.deepEqual(p.state().bets,api.server);
+  assert.deepEqual(p.state().pendAdd,[]);
+  assert.equal(p.state().sync.state,'ok');
+});

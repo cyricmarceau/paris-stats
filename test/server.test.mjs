@@ -197,3 +197,35 @@ test('optional probability boundaries and player name types match the page contr
   }
   assert.equal(s.github().puts, puts);
 });
+
+// Revue 7 : première copie valide conservée, même si les autres champs diffèrent.
+test('revue 7 : doublons différents et réessai conservent la première copie', async () => {
+  const s = await startServer();
+  const first = validBet({who:'Premier',stake:12});
+  const second = validBet({who:'Second',stake:99});
+  for (let i=0; i<2; i++) {
+    const r = await s.call('/api/bets', {method:'POST',code:'secret',body:{bets:i ? [second, second] : [first,second]}});
+    assert.equal(r.status,200);
+    assert.deepEqual(r.json.bets,[first]);
+    assert.deepEqual(JSON.parse(s.github().file),[first]);
+  }
+});
+
+for (const invalidFirst of [true, false]) {
+  test('revue 7 : même id valide/invalide, invalide en premier = '+invalidFirst, async () => {
+    const s = await startServer();
+    const good = validBet(), bad = validBet({stake:0});
+    const r = await s.call('/api/bets', {method:'POST',code:'secret',body:{bets:invalidFirst ? [bad,good] : [good,bad]}});
+    assert.equal(r.status,200);
+    assert.deepEqual(r.json.bets,[good]);
+    assert.deepEqual(JSON.parse(s.github().file),[good]);
+  });
+}
+
+test('backlog 21 : message GitHub ne cite que le parieur effectivement ajoute', {todo:'backlog 21'}, async () => {
+  const s=await startServer();
+  const r=await s.call('/api/bets',{method:'POST',code:'secret',body:{bets:[validBet({who:'Premier'}),validBet({who:'Second'})]}});
+  assert.equal(r.status,200);
+  assert.deepEqual(r.json.bets,[validBet({who:'Premier'})]);
+  assert.deepEqual(s.github().messages,['Pari ajouté (Premier)']);
+});
