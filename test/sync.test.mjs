@@ -310,7 +310,7 @@ test('revue 9 : userMsg local de suppression et priorite du refus POST',async()=
   }
 });
 
-test('backlog 11 : ancien id surrogate ne bloque pas les suppressions independantes',{todo:'backlog 11'},async()=>{
+test('backlog 11 : ancien id surrogate ne bloque pas les suppressions independantes',async()=>{
   const storage=storageWith([]),calls=[];
   storage['paris-stats-pend-del']=JSON.stringify(['\ud800','good']);
   const p=loadPage({data:sampleData(),storage,fetch(url,opts){

@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 10
@@ -43,15 +43,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 9 — points de la revue 8 sur le backlog 11 (rouvert).
-- Quoi, serveur (`server.mjs`) : la route DELETE n'a plus de limite de 200 caractères sur le segment encodé (`([^/]+)`), la limite de 40 s'applique après décodage ; un id de 40 caractères accentués ou chinois (240 caractères encodés) est donc supprimable. `validBet` refuse les id qui ne peuvent pas revenir intacts dans l'adresse : vide, « . », « .. », et Unicode mal formé (`isWellFormed()`, demi-caractère isolé).
-- Quoi, page (`index.html`, `sync()`) : un DELETE refusé (400 ou 404) n'arrête plus la chaîne ; la suppression reste en attente, les suivantes partent, et la synchro se termine sur « Le serveur a refusé une suppression ; elle reste en attente. » au lieu de « Paris enregistrés ».
-- Changement d'attente de 4 tests de Codex, à contester si besoin : les tests TODO exigeaient que les id « », « . », « .. » et « \ud800 » soient acceptés au POST puis supprimables. C'est impossible par l'adresse : le client (WHATWG URL) réécrit `/api/bets/.` en `/api/bets/` et `/api/bets/..` en `/api/`, un id vide ne forme pas de segment, et `encodeURIComponent` lève une erreur sur un demi-caractère. Pour garder le contrat « tout id accepté au POST est supprimable », ces 4 cas attendent maintenant un refus 400 au POST sans écriture. Le test n'est pas supprimé : ses cas sont séparés en deux boucles (aller-retour pour les 2 id Unicode, refus pour les 4 impossibles), avec un commentaire qui explique pourquoi. Le cas `import:1` (itération 8) reste accepté et supprimable.
-- Fichiers : `server.mjs`, `index.html`, `test/server.test.mjs` (voir ci-dessus), `test/sync.test.mjs` (retrait du marqueur `todo` des 2 tests DELETE 400/404).
-- Tests : `npm run lint` 4/4 ; `npm test` 93 tests : 88 réussis, 0 échec, 5 TODO (backlogs 13, 19, 20, 21, 22). Sans la correction (stash de `index.html` et `server.mjs`), les 8 tests du backlog 11 échouent.
-- Limite connue : un pari déjà enregistré sur le serveur avec un id « . » ou « .. » (aucun connu) resterait impossible à supprimer par l'adresse.
+Itération 10 (dernière) — point de la revue 9 sur le backlog 11 : un ancien id avec un demi-caractère Unicode bloquait encore les suppressions suivantes. La revue 9 a accepté les 4 attentes de test changées à l'itération 9.
+- Quoi (`index.html`, `sync()`) : le gestionnaire d'erreur de chaque DELETE traite aussi `URIError` (levée par `encodeURIComponent` sur un tel id) comme une suppression refusée : elle reste en attente, les suivantes partent, message « Le serveur a refusé une suppression ; elle reste en attente. ». Les erreurs 401 et réseau arrêtent toujours la chaîne comme avant.
+- Pourquoi : un id de ce type enregistré avant l'itération 9 (quand le serveur l'acceptait) faisait échouer `encodeURIComponent` et bloquait toute la file des suppressions.
+- Fichiers : `index.html` (1 condition), retrait du marqueur `todo: 'backlog 11'` du test de Codex (`test/sync.test.mjs`).
+- Tests : `npm run lint` 4/4 ; `npm test` 101 tests : 94 réussis, 0 échec, 7 TODO (backlogs 13, 19, 20, 21, 22, 23 × 2). Sans la correction (stash de `index.html`), ce test échoue.
+- Non traité dans cette dernière itération (une correction par itération, les points de revue d'abord) : backlog 23 (élevé), à reprendre en priorité dans une prochaine boucle.
 
 ## Review
+(revue 10 et passe finale en attente de Codex ; ci-dessous, la revue 9)
+
 **À CORRIGER — revue 9 par Codex ; progrès de 11 prouvé, historique encore bloquant ; nouveau 23.**
 
 - AGENTS.md, LOOP.md et git show HEAD (5b64441) lus. Catalogue des skills vérifié : aucun skill spécialisé utile à cette revue Node/HTML ; aucun SKILL.md dans le dépôt. Branche auto-improve/2026-11-13 conservée, seules modifications LOOP.md et test/, aucun push.
@@ -105,3 +106,4 @@ Revues précédentes condensées :
 - Itération 9 : backlog 11 complété (DELETE sans limite d'encodage, id impossibles refusés au POST, DELETE 400/404 ne bloque plus la file) ; 80 → 88 tests réussis, 13 → 5 TODO (4 attentes de test changées, justifiées dans « Dernière modif »).
 
 - Revue 9 (Codex) : À CORRIGER ; quatre attentes acceptées, huit tests 11 parent rouges/HEAD verts, 11 reste ouvert pour anciens surrogates ; nouveau 23 (closeOdds plante le rendu) ; 93 réussis + 8 TODO / 101 ; itération 10, TOUR_CLAUDE, dernière autorisée.
+- Itération 10 : backlog 11 terminé côté page (un ancien id Unicode mal formé ne bloque plus les suppressions) ; 93 → 94 tests réussis, 8 → 7 TODO.
