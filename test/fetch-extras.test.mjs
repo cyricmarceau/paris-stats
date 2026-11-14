@@ -47,3 +47,12 @@ test('calendrier : seulement les matchs de saison régulière terminés', () => 
   parseSchedule({ events: [ev('a', 'STATUS_FINAL', 2), ev('b', 'STATUS_SCHEDULED', 2), ev('c', 'STATUS_FINAL', 3)] }, into);
   assert.deepEqual([...into.values()], [['a', '2025-01-02', '1', '2', 110, 100]]);
 });
+
+test('backlog 19 : un joueur avec points et minutes arrondies a zero conserve ses stats', { todo: 'backlog 19' }, () => {
+  const s = { boxscore: { players: [block('1', 100), block('2', 200)] } };
+  s.boxscore.players[0].statistics[0].athletes.push(athlete('999', ['0', '2', '0', '0', '0-0']));
+  const store = { players: {} };
+  parseBox(s, game, store);
+  assert.ok(store.players['999'], 'joueur ayant marque 2 points efface a cause de ses minutes arrondies');
+  assert.equal(store.players['999'].g[0][6], 2);
+});

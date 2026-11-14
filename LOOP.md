@@ -1,10 +1,10 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CODEX
+TOUR_CLAUDE
 
 ## Itération
-6
+7
 
 ## Projet (analyse de la préparation)
 - Site statique : `index.html` (CSS + un script en ligne, ~1450 lignes), données générées `data.js`, `players.js`, `h2h.js`, `h2hbox.js`.
@@ -27,6 +27,7 @@ TOUR_CODEX
 10. **[BUG – moyen] Doublons dans un même POST comptés deux fois.** `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
 13. **[BUG – moyen] Ajout pendant une synchro : succès sans envoi.** `index.html:867,880,900-902,1349` : pendant que le POST du premier pari attend, le formulaire ajoute un second et appelle sync(), qui retourne immédiatement. Le second reste local dans bets/pendAdd, mais hors du lot toSend. À la réponse, aucune relance et syncHtml annonce « Paris enregistrés sur le serveur » (`index.html:916`). Reproduit avec POST différé, test TODO `backlog 13`. Préexistant au correctif ; traiter les changements arrivés en cours de route ou signaler leur attente. Contrôler aussi suppression/import pendant la synchro.
+19. **[BUG - moyen] Un joueur ayant marque peut etre efface si ses minutes sont arrondies a zero.** `fetch-extras.mjs:36,55-56` tronque les minutes puis ignore toute ligne <= 0, meme avec `didNotPlay` absent et 2 points marques. Reproduction synthetique dans `test/fetch-extras.test.mjs:51` (TODO backlog 19) : ajouter un joueur avec stats ['0','2','0','0','0-0'] a une feuille complete ; parseBox ne cree aucune entree pour lui. Les minutes '0:45' sont aussi tronquees a 0. Le match est ensuite marque done (`fetch-extras.mjs:113`), sans nouvel essai. Pour un joueur deja connu, la ligne manquante devient ensuite ? n'a pas joue ? et pari rembourse (`index.html:941-942,950`), au lieu du resultat de ses points. Conserver les apparitions etablies par les stats et traiter les durees sans perdre les secondes. Payloads ESPN de production non consultes ; frequence reelle non mesuree. Distinct des identifiants et champs facultatifs.
 2. **[BUG – faible] Écritures GitHub inutiles.** `server.mjs:53-54` : `change` reçoit une copie (`cur.bets.slice()`), donc `next === cur.bets` n'est jamais vrai ; un doublon renvoyé (réessai après délai dépassé) ou la suppression d'un id inconnu crée quand même un commit sur `paris-data`.
 3. **[BUG – faible] JSON invalide → 500 au lieu de 400.** `server.mjs:92` lève une SyntaxError attrapée en 500 (`server.mjs:121-123`).
 4. **[SÉCURITÉ – faible] Messages d'erreur internes renvoyés au client.** `server.mjs:123` renvoie `error.message` brut (ex. « Lecture : HTTP 401 » de GitHub).
@@ -46,25 +47,23 @@ Itération 6 — backlog 18 (probabilité de l'ancienne ligne conservée). La re
 - Changement visible : message « Ligne modifiée… » dans le formulaire (noté dans « À valider »).
 
 ## Review
-(revue 6 en attente de Codex ; ci-dessous, la revue 5)
+**A CORRIGER - revue 6 par Codex ; correctif 18 accepte, nouveau 19 a traiter.**
 
-**À CORRIGER - revue 5 par Codex ; correctif 17 accepte, nouveau 18 a traiter.**
-
-- AGENTS.md, LOOP.md et `git show HEAD` (51cb5f8) lus. Catalogue des skills examine : aucun skill specialise utile a cette revue HTML/Node ; aucun SKILL.md de projet trouve. Branche conservee ; seules modifications dans test/ et LOOP.md, aucun push ni changement source.
-- **Preuve 17 independante** : sources `git show 51cb5f8^:index.html` et `:server.mjs` copiees sous test/review-parent avec tests/harness actuels. `node --test --test-name-pattern="backlog 17" test/page.test.mjs test/server.test.mjs` : parent **0/4, exit 1** (deux TypeError au rendu, deux POST 200 au lieu de 400), HEAD **4/4, exit 0**. Copies temporaires supprimees ; aucun test supprime ou affaibli.
-- **17 confirme** : `server.mjs:69-70` valide p/playerName ; `index.html:932,1021` protege les anciens paris. Test API supplementaire : p absent/null/0/0,5/1 acceptes ; p negatif/>1/chaine/booleen/tableau/objet refuses ; playerName numerique/booleen/tableau/>80 caracteres refuse, sans ecriture pour les refus.
-- **Compatibilite des probabilites** : `index.html:445-450,539-550,1092-1104,1218-1224,1264,1347` relus. Sept tests verts supplementaires pilotent les gestionnaires reels via faux DOM, a partir des attributs des boutons rendus : ml avec/sans book, spread, total, props avec ligne normale et deux lignes extremes. p fini dans [0,1], data-po numerique dans ces cas. Sans attribut p, p0 devient null ; si data-po est NaN, draft.p peut etre NaN mais JSON.stringify le transmet comme null (autorise par API). Aucun chemin normal trouve produisant une chaine ou p hors intervalle. Le harness enregistre desormais les evenements ; source et assertions existantes inchangees.
-- **Autres champs facultatifs affiches** : l'affirmation dans Derniere modif que playerName est le seul autre champ facultatif affiche est trop large. `closeOdds` intervient aussi dans betClv (`index.html:962-964`) avec controle de verite seulement ; closeLine a un typeof (`966`). Les chemins normaux updateClose (`831-833`) les produisent numeriques. Les imports restent permissifs et validBet ne valide pas ces champs. 17 accepte pour p/playerName, sans garantie generale sur les imports. Pas de ticket supplementaire sur une variante de champ objet mal forme, conformement a la demande d'eviter cette meme veine. p=0 masque et p historique >1 affichable (`1021`) : comportements preexistants, sans regression de ce diff.
-- **Nouveau 18, moyen** : probabilite inchangee apres modification de ligne, reproduite par `test/form.test.mjs:36` (TODO backlog 18). Under 100,5 enregistre avec 0,537778 au lieu d'une probabilite proche de zero ou absente. Aucun autre nouveau probleme suffisamment etabli retenu apres lecture des calculs, formulaire, synchro et fetch-extras.mjs.
-- **Checks** : `npm run lint` **4/4, exit 0** ; `npm test` initial **51 reussis + 3 TODO / 54**, final **59 reussis + 4 TODO / 63, exit 0**, zero echec bloquant. Les quatre TODO echouent comme attendu (10, 11, 13, 18). Aucun build ni typecheck. Production et exports personnels non consultes ; aucun navigateur execute.
-- Aucun arret : cinq iterations terminees, backlog ouvert, amelioration mesurable (quatre tests 17 rouges sur parent, verts sur HEAD). **Iteration 6, TOUR_CLAUDE** ; priorite suivante 18 puis 10/11/13.
+- AGENTS.md, LOOP.md et git show 8eec8c4 lus. Catalogue des skills verifie : aucun skill specialise utile pour cette revue HTML/Node ; aucun SKILL.md de projet trouve. Aucun changement source, aucun push, branche auto-improve/2026-11-13 conservee.
+- **Preuve 18** : source 8eec8c4^:index.html copiee temporairement sous test/ avec le harness et le test actuels. Commande node --test --test-name-pattern="backlog 18" : parent **0/1, exit 1** (Under 100,5 garde p=0,537778), HEAD **1/1, exit 0**. Copies temporaires retirees ; aucun test supprime ou affaibli.
+- **Formulaire** : index.html:1256-1271,1280-1292,1303-1310,1344,1363-1368. Sept tests ajoutes pilotent les vrais gestionnaires : spread change de signe sans invalider p, total/prop changent de cote avec p complementaire, ml garde sa probabilite sans ligne. Spread/total/props : ligne vide ou non numerique refusee a la soumission, nouvelle ligne enregistree avec p=null, resume ? Ligne modifiee ? et suggestion retiree. Ressaisir la valeur initiale avec une autre representation numerique restaure p, resume et suggestion. Props ouverts depuis les attributs de la table joueurs rendue avec ligne stockee 20,5. La mise deja saisie reste conservee ; la puce de suggestion disparait bien. Aucun blocage ni regression trouve dans le diff.
+- **Merge hors boucle d369518** : diff contre 8eec8c4 limite a AGENTS.md (+1 revision par PR), badge revision 20 et test/revision.test.mjs. Aucun chevauchement avec le JS du correctif, aucun marqueur de conflit, test de revision vert. Aucun navigateur ni deploiement consulte.
+- **Nouveau 19, moyen** : fetch-extras.mjs:55-56 perd un joueur ayant marque 2 points avec minutes arrondies a zero ; reproduction parseBox rouge sous TODO backlog 19. Consequence de reglement lue dans index.html:941-950. Reponse ESPN reelle non consultee ; ne pas confondre la preuve locale avec une occurrence observee en production.
+- **Checks executes** : npm run lint **4/4, exit 0** ; npm test initial **61 reussis + 3 TODO / 64**, final **68 reussis + 4 TODO / 72, exit 0**, aucun echec bloquant. node --test test/form.test.mjs **15/15**. git diff --check vert. Aucun build ni typecheck.
+- Aucun arret : six iterations terminees, backlog encore ouvert, amelioration mesurable (18 rouge sur parent, vert sur HEAD). **Iteration 7, TOUR_CLAUDE** ; priorites 10/11/13 puis 19.
 
 Revues precedentes condensees :
 
 - Revue 1 : A CORRIGER ; refus partiel de 1, nouveaux 10/11/12 ; 32 reussis + 5 TODO.
 - Revue 2 : A CORRIGER ; 1 confirme (parent 0/2, actuel 2/2), nouveaux 14/13 ; 37 reussis + 6 TODO.
-- Revue 3 : A CORRIGER ; 14 confirme (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 reussis + 7 TODO. Compatibilite des identifiants historiques examinee.
-- Revue 4 : A CORRIGER ; regroupement 15/12/16 accepte, parent 0/4 et HEAD 4/4 ; nouveau 17 ; 47 reussis + 5 TODO. Dictionnaires, vrais ids joueurs et exports historiques examines.
+- Revue 3 : A CORRIGER ; 14 confirme (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 reussis + 7 TODO.
+- Revue 4 : A CORRIGER ; 15/12/16 acceptes (parent 0/4, HEAD 4/4), nouveau 17 ; 47 reussis + 5 TODO.
+- Revue 5 : A CORRIGER ; 17 confirme (parent 0/4, HEAD 4/4), nouveau 18 ; 59 reussis + 4 TODO. Compatibilite des probabilites examinee ; closeOdds reste un champ facultatif non valide, sans ticket supplementaire.
 
 ## À valider par Cyric
 - ~~`GET /api/bets` public~~ : Cyric a répondu de le garder ainsi (13 nov.).
@@ -86,3 +85,5 @@ Revues precedentes condensees :
 - Itération 5 : backlog 17 corrigé (p et playerName mal typés refusés par le serveur, affichage tolérant) ; 47 → 51 tests réussis, 5 → 3 TODO.
 - Revue 5 (Codex) : À CORRIGER ; 17 confirme (parent 0/4, HEAD 4/4), nouveau 18 (probabilite figee apres modification de ligne) ; 59 reussis + 4 TODO ; iteration 6, TOUR_CLAUDE.
 - Itération 6 : backlog 18 corrigé (probabilité invalidée quand la ligne du formulaire change) ; 59 → 60 tests réussis, 4 → 3 TODO.
+
+- Revue 6 (Codex) : A CORRIGER ; 18 confirme (parent 0/1, HEAD 1/1), sept tests de formulaire supplementaires, nouveau 19 (minutes arrondies et joueur efface) ; 68 reussis + 4 TODO ; iteration 7, TOUR_CLAUDE.
