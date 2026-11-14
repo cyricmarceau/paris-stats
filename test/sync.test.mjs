@@ -320,4 +320,28 @@ test('backlog 11 : ancien id surrogate ne bloque pas les suppressions independan
   await flush();
   assert.ok(calls.some(url=>url.endsWith('/good')),'URIError bloque encore good');
   assert.deepEqual(p.state().pendDel,['\ud800']);
+  assert.equal(p.state().sync.state,'off');
+  assert.equal(p.state().sync.msg,'Le serveur a refusé une suppression ; elle reste en attente.');
+  assert.match(p.document.getElementById('view-paris').innerHTML,/1 changement\(s\) à envoyer/);
 });
+
+// Passe finale : isoler un id historique ne doit pas masquer une panne sur le DELETE suivant.
+for (const failure of [401,'network']) {
+  test('revue 10 : apres un surrogate, '+failure+' arrete encore les DELETE',async()=>{
+    const storage=storageWith([]),calls=[];
+    storage['paris-stats-pend-del']=JSON.stringify(['\ud800','blocked','later']);
+    const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+      if(opts.method==='DELETE') {
+        calls.push(url);
+        return failure==='network' ? Promise.reject(new Error('offline')) : Promise.resolve({ok:false,status:401,json:async()=>({})});
+      }
+      return Promise.resolve({ok:true,status:200,json:async()=>({bets:[]})});
+    }});
+    await flush();
+    assert.equal(calls.length,1);
+    assert.ok(calls[0].endsWith('/blocked'));
+    assert.deepEqual(p.state().pendDel,['\ud800','blocked','later']);
+    assert.equal(p.state().sync.state,failure===401?'code':'off');
+    assert.equal(p.state().sync.msg,failure===401 ? "Code d'équipe invalide." : 'Serveur injoignable.');
+  });
+}

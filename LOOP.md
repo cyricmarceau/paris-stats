@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CODEX
+TERMINÉ
 
 ## Itération
 10
@@ -26,7 +26,7 @@ TOUR_CODEX
 18. ~~**[BUG - moyen] Modifier la ligne du formulaire conserve la probabilite de l'ancienne ligne.**~~ Corrigé à l'itération 6 (probabilité invalidée si la ligne change). `index.html:1218-1224,1264,1288-1294,1322-1328,1347-1352` : p est fixe a l'ouverture/au changement de cote ; aucun gestionnaire bmLine ne le recalcule ni ne l'efface. Reproduction avec le bouton total reellement rendu : Under 220,5 a 53,7778 %, ligne remplacee par 100,5, soumission -> Under 100,5 conserve p=0,537778. Resume et suggestion de mise restent aussi bases sur l'ancienne ligne. Meme chemin pour spread/props par lecture. Test TODO `backlog 18` dans `test/form.test.mjs:36` via les vrais gestionnaires ; cas total demontre sans navigateur. Recalculer p avec la nouvelle ligne ou l'invalider et rafraichir resume/mise. Preexistant, distinct du typage facultatif et de la synchro.
 10. ~~**[BUG – moyen] Doublons dans un même POST comptés deux fois.**~~ Corrigé à l'itération 7. `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 23. **[BUG – élevé] Une cote de fermeture mal typée bloque le rendu et le démarrage de la synchro.** server.mjs:64-77,121 accepte et stocke un pari ml valide avec closeOdds: {toString: null} (POST 200). index.html:974-975,994-1001,1201 divise ensuite par cet objet dans betClv : TypeError « Cannot convert object to primitive value » avant sync(). Deux nouveaux TODO backlog 23 (test/server.test.mjs:289 et test/page.test.mjs:173) prouvent acceptation API et plantage au chargement local. Valider la cote facultative côté serveur et ignorer les anciennes valeurs invalides côté page. Champ non couvert par 17 (p/playerName) ; risque évoqué sans ticket à la revue 5, désormais reproduit et ajouté au backlog. Priorité élevée car la page ne termine plus son initialisation.
-11. **[BUG – moyen] Suppressions des anciens identifiants : correction encore partielle.** Revue 9 : les huit tests de l'itération 9 échouent sur 5b64441^ et passent sur 5b64441 ; Unicode long supprimable et quatre ids impossibles refusés au POST (attentes acceptées). Mais index.html:903-907 appelle toujours encodeURIComponent sans isoler URIError : avec pendDel = ['\ud800', 'good'], aucun DELETE ne part, good reste bloqué et le message est « Serveur injoignable ». Nouveau TODO backlog 11 dans test/sync.test.mjs:313. Les ids historiques/importés étaient explicitement dans le périmètre de 11 ; leur refus au nouveau POST ne répare pas la file existante. Isoler aussi l'erreur locale, conserver/signaler l'id irrécupérable et continuer les autres ; prévoir une récupération pour les anciens ids vide/point/deux points sans prétendre les supprimer par la route actuelle. Aucun cas réel en production consulté.
+11. **[BUG – moyen] Suppressions : file corrigée, récupération historique encore ouverte.** Itérations 8–10 validées : les id acceptés au POST sont supprimables, les DELETE 400/404 et un ancien demi-caractère Unicode ne bloquent plus les suppressions suivantes. Preuve revue 10 : le test historique échoue sur ac651e8^ et passe sur ac651e8 ; l'id impossible reste en attente avec un message de refus. **Reste à faire :** une voie de récupération pour les anciens id vide, « . », « .. » ou Unicode mal formé ; les nouveaux POST les refusent, mais les anciennes données ne sont pas réparées. Aucun cas réel en production consulté. Ne pas présenter ce volet historique comme entièrement résolu.
 
 13. **[BUG – moyen] Ajout pendant une synchro : succès sans envoi.** `index.html:867,880,900-902,1349` : pendant que le POST du premier pari attend, le formulaire ajoute un second et appelle sync(), qui retourne immédiatement. Le second reste local dans bets/pendAdd, mais hors du lot toSend. À la réponse, aucune relance et syncHtml annonce « Paris enregistrés sur le serveur » (`index.html:916`). Reproduit avec POST différé, test TODO `backlog 13`. Préexistant au correctif ; traiter les changements arrivés en cours de route ou signaler leur attente. Contrôler aussi suppression/import pendant la synchro.
 19. **[BUG - moyen] Un joueur ayant marque peut etre efface si ses minutes sont arrondies a zero.** `fetch-extras.mjs:36,55-56` tronque les minutes puis ignore toute ligne <= 0, meme avec `didNotPlay` absent et 2 points marques. Reproduction synthetique dans `test/fetch-extras.test.mjs:51` (TODO backlog 19) : ajouter un joueur avec stats ['0','2','0','0','0-0'] a une feuille complete ; parseBox ne cree aucune entree pour lui. Les minutes '0:45' sont aussi tronquees a 0. Le match est ensuite marque done (`fetch-extras.mjs:113`), sans nouvel essai. Pour un joueur deja connu, la ligne manquante devient ensuite ? n'a pas joue ? et pari rembourse (`index.html:941-942,950`), au lieu du resultat de ses points. Conserver les apparitions etablies par les stats et traiter les durees sans perdre les secondes. Payloads ESPN de production non consultes ; frequence reelle non mesuree. Distinct des identifiants et champs facultatifs.
@@ -51,7 +51,17 @@ Itération 10 (dernière) — point de la revue 9 sur le backlog 11 : un ancien 
 - Non traité dans cette dernière itération (une correction par itération, les points de revue d'abord) : backlog 23 (élevé), à reprendre en priorité dans une prochaine boucle.
 
 ## Review
-(revue 10 et passe finale en attente de Codex ; ci-dessous, la revue 9)
+**OK — revue 10 par Codex : correctif accepté. Passe finale avec réserves connues.**
+
+- AGENTS.md, LOOP.md et `git show HEAD` (ac651e8) lus avant la revue. Catalogue des skills Codex vérifié : aucun skill spécialisé utile à cette revue de code Node/HTML ; aucun SKILL.md trouvé dans le dépôt, fichiers cachés inclus. Aucun skill installé.
+- **Preuve du correctif 10 :** copie de `ac651e8^:index.html` sous test/, harness et test actuels redirigés vers cette copie. `node --test --test-name-pattern='ancien id surrogate' test/review10-parent.test.mjs` : 0 réussi, 1 échec, exit 1, « URIError bloque encore good ». Copies temporaires retirées ; aucune source remplacée. Sur le code actuel : le même test passe, l'id impossible reste en attente, `good` part, message de refus et compteur visibles dans le HTML simulé.
+- **Arrêt sur erreur préservé :** `node --test --test-name-pattern='ancien id surrogate|revue 9 : DELETE' test/sync.test.mjs` : 4/4, dont 401, 503 et réseau avec réessai. Deux tests supplémentaires passent : après l'id mal formé, un DELETE 401 ou une panne réseau arrête les suivants et conserve toute la file restante. Aucun test supprimé ni TODO masquant une nouvelle régression.
+- **Passe finale :** lecture du diff `824d4d5..HEAD` sur index.html, server.mjs, fetch-extras.mjs, fetch-data.mjs et les tests. Flux GET/POST/DELETE, refus partiel/total, migration, réessai, dictionnaires sans prototype, formulaire (quatre marchés, inversion du spread, invalidation/restauration de probabilité), validation serveur, résultats/profits et rendu examinés. Aucune nouvelle régression introduite par l'ensemble des dix itérations constatée dans ce périmètre. Les 7 TODO échouent bien pour les défauts déjà répertoriés ; ils ne sont pas des tests réussis.
+- **Périmètre confirmé :** diff global limité à AGENTS.md, LOOP.md, index.html, server.mjs et test/. Aucun changement de données générées, render.yaml, .github/ ou fichier de secrets. fetch-data.mjs et fetch-extras.mjs inchangés. Le numéro de révision 20 et sa règle AGENTS.md proviennent de la fusion extérieure d369518, pas d'une modification de cette revue. Aucun secret lu ou modifié.
+- **Contrôles initiaux :** `npm run lint` 4/4 ; `npm test` 94 réussis, 7 TODO / 101, exit 0. **Finaux :** mêmes commandes, lint 4/4 ; tests 96 réussis, 0 échec hors TODO, 7 TODO / 103, exit 0 ; `git diff --check` vert. Aucun build ni typecheck. Exécution sous Node 26, serveur local réel avec GitHub simulé, page sous faux DOM.
+- **Arrêt obligatoire :** dix itérations atteintes. État TERMINÉ, aucun nouveau tour développeur. OK valide la correction 10 ; il ne clôt pas les défauts restants, notamment le backlog 23 élevé et la récupération historique du 11. Aucun navigateur réel, API de production ou déploiement testé pendant cette passe. Branche conservée, aucun push ; seules modifications de revue : LOOP.md et test/.
+
+### Revue 9 conservée pour référence
 
 **À CORRIGER — revue 9 par Codex ; progrès de 11 prouvé, historique encore bloquant ; nouveau 23.**
 
@@ -75,6 +85,71 @@ Revues précédentes condensées :
 - Revue 7 : À CORRIGER ; 10 confirmé (parent 0/1, HEAD 1/1), sept tests complémentaires verts ; nouveaux 20/21 ; 76 réussis + 5 TODO.
 - Revue 8 : À CORRIGER ; import:1 prouvé (parent rouge, HEAD vert), 11 rouvert (Unicode long, ids impossibles, file DELETE) ; nouveau 22 ; 80 réussis + 13 TODO / 93. Neuf TODO rouges ajoutés et trois tests complémentaires verts.
 
+## Résumé final
+
+Boucle terminée après 10 itérations. Correctif 10 accepté (OK).
+Aucune nouvelle régression constatée dans le code et les tests examinés.
+Des défauts connus restent ouverts ; les TODO ne prouvent pas leur correction.
+
+### Ce qui a été corrigé
+
+- **1 — Un pari refusé reste sur l'appareil.** Refus signalé, succès partiel distingué et suppressions indépendantes envoyées malgré un POST 400.
+- **14 — La page résiste aux identifiants d'équipe hérités.** Les nouveaux paris avec ces identifiants sont refusés par l'API.
+- **12 — Un pari local nommé « constructor » n'est plus perdu.** Migration et rapprochement avec le serveur utilisent de vrais ensembles d'identifiants.
+- **15 — Un identifiant joueur hérité ne bloque plus l'affichage.** Identifiants et statistiques des nouveaux paris joueur sont validés.
+- **16 — Un match inexistant reste en attente.** Plus de gain ou remboursement calculé depuis une propriété héritée.
+- **17 — Une probabilité ou un nom de joueur mal typé ne bloque plus la liste.** Protection du rendu historique et validation des nouveaux envois.
+- **18 — Changer la ligne retire la probabilité et la suggestion devenues fausses.** Retour à la ligne initiale : elles redeviennent disponibles.
+- **10 — Un pari envoyé deux fois dans le même lot ne compte qu'une fois.** La première copie valide est conservée.
+- **11 — Les suppressions compatibles avec l'adresse aboutissent.** Les id importés et Unicode longs passent ; un refus ou ancien Unicode mal formé ne bloque plus les suivants. Récupération des anciens id impossibles encore à faire.
+
+### Couverture avant / après
+
+Avant la boucle : **0 test** (27 créés à la préparation).
+Après la passe finale : **103 tests, 96 réussis, 7 TODO, aucun autre échec**.
+Deux tests ajoutés à cette revue, test historique renforcé, aucun test supprimé.
+
+Couverture : calculs de probabilités et profits, quatre marchés de paris,
+formulaire et ligne modifiée, affichage avec données anciennes mal typées,
+synchronisation et files d'attente, validation/authentification de l'API,
+doublons, encodage des suppressions, parsing des feuilles ESPN et syntaxe.
+Le vrai serveur est testé localement ; les écritures GitHub sont simulées.
+Le faux DOM ne vérifie ni la mise en page ni tous les comportements du navigateur.
+
+### Risques restants, par priorité
+
+- **23 — Élevé : une cote de fermeture mal typée bloque encore la page et sa synchronisation.** Acceptée par l'API ; deux TODO reproduisent le problème. À traiter en premier.
+- **11 — Moyen : certains anciens paris restent impossibles à supprimer.** Id vide, « . », « .. » ou Unicode mal formé : file débloquée mais récupération manuelle/outillée à définir.
+- **13 — Moyen : un ajout pendant la synchronisation peut rester en attente malgré un message de succès.** TODO reproduit ; suppressions et imports concurrents à examiner aussi.
+- **19 — Moyen : un joueur ayant marqué avec des minutes arrondies à zéro peut être oublié.** Risque de remboursement erroné ; TODO synthétique.
+- **20 — Moyen : une ligne de statistiques tronquée peut devenir des zéros définitifs.** Risque de résultat et de moyenne faux ; TODO synthétique.
+- **22 — Moyen : deux blocs de la même équipe peuvent passer pour une feuille complète.** Adversaires absents, remboursement erroné possible ; TODO synthétique.
+- **2 — Faible : des réessais sans changement créent des écritures GitHub inutiles.**
+- **3 — Faible : un JSON invalide reçoit une erreur 500 au lieu de 400.**
+- **4 — Faible : certains messages techniques internes sont renvoyés au client.**
+- **5 — Faible : toutes les données joueurs/face-à-face sont chargées à chaque visite.**
+- **6 — Faible : le sens des cotes ESPN de fetch-data.mjs n'a pas de test dédié.**
+- **7 — Faible : les horaires affichés et ceux du workflow se règlent séparément.**
+- **21 — Faible : l'historique GitHub peut citer un parieur dont le doublon a été écarté.** TODO reproduit, sans perte de pari démontrée.
+- **8 — Faible : le bandeau de données anciennes propose une commande inutilisable sur téléphone.**
+- **9 — Faible : un nom trop long peut être saisi/importé puis refusé à chaque synchronisation.** Le pari reste local.
+
+Non vérifié ici : parcours dans un vrai navigateur/iPhone, clavier mobile,
+stockage réel et échanges entre plusieurs appareils, API/GitHub en production,
+endormissement Render, CORS réel et déploiement. Aucun appel live effectué.
+Pas d'essai sous Node 22 pendant cette passe.
+Les anomalies ESPN 19/20/22 sont synthétiques : fréquence réelle non mesurée.
+La présence de paris historiques touchés par 11 ou 23 en production est inconnue.
+
+### À valider par Cyric
+
+- Garder le GET public : **déjà confirmé**, pas de nouvelle décision demandée.
+- Prioriser la correction 23 et définir la récupération des anciens id (11).
+- Confirmer l'absence de probabilité/suggestion après changement de ligne (18), ou demander un recalcul ultérieur.
+- Choisir un texte de bandeau utile sur téléphone (8).
+- Recalibrer le poids du book (70 %) quand assez de matchs seront disponibles.
+- Essayer le formulaire et la refonte visuelle sur un vrai iPhone ; valider la synchronisation réelle entre appareils avant de conclure sur l'usage quotidien.
+
 ## À valider par Cyric
 - ~~`GET /api/bets` public~~ : Cyric a répondu de le garder ainsi (13 nov.).
 - Poids du book dans les probabilités (`MARKET_W = 0.7`, `index.html`) choisi au jugé ; à recalibrer quand il y aura assez de matchs joués.
@@ -83,6 +158,7 @@ Revues précédentes condensées :
 - Refonte visuelle par Codex : fusionnée (PR #16), hors de cette boucle. Pas encore vérifiée sur un vrai iPhone.
 
 ## Historique
+- Revue 10 + passe finale (Codex) : OK pour le correctif 10 ; parent rouge/HEAD vert, 96 réussis + 7 TODO / 103 ; aucune nouvelle régression constatée, réserves 23 et récupération 11 explicites ; arrêt à 10 itérations, TERMINÉ, aucun push.
 - Itération 0 : préparation, 0 → 27 tests.
 - Itération 1 : pari refusé par le serveur conservé sur l'appareil, message clair ; 27 → 29 tests.
 - Revue 1 (Codex) : À CORRIGER ; preuve ancien code 0/2, actuel 32 réussis + 5 TODO ; backlog 1 rouvert, nouveaux 10, 11 et 12 ; itération 2, TOUR_CLAUDE.
