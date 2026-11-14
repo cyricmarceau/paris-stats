@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 8
@@ -25,7 +25,7 @@ TOUR_CLAUDE
 1. ~~**[BUG – moyen] Pari refusé : perte locale, succès trompeur et suppressions bloquées.**~~ Confirmé terminé à l’itération 2 : refus conservé et signalé, DELETE indépendants envoyés malgré POST 400. Les deux anciens TODO passent et échouent sur `c806e4c^`. Cas concurrent préexistant suivi séparément au backlog 13.
 18. ~~**[BUG - moyen] Modifier la ligne du formulaire conserve la probabilite de l'ancienne ligne.**~~ Corrigé à l'itération 6 (probabilité invalidée si la ligne change). `index.html:1218-1224,1264,1288-1294,1322-1328,1347-1352` : p est fixe a l'ouverture/au changement de cote ; aucun gestionnaire bmLine ne le recalcule ni ne l'efface. Reproduction avec le bouton total reellement rendu : Under 220,5 a 53,7778 %, ligne remplacee par 100,5, soumission -> Under 100,5 conserve p=0,537778. Resume et suggestion de mise restent aussi bases sur l'ancienne ligne. Meme chemin pour spread/props par lecture. Test TODO `backlog 18` dans `test/form.test.mjs:36` via les vrais gestionnaires ; cas total demontre sans navigateur. Recalculer p avec la nouvelle ligne ou l'invalider et rafraichir resume/mise. Preexistant, distinct du typage facultatif et de la synchro.
 10. ~~**[BUG – moyen] Doublons dans un même POST comptés deux fois.**~~ Corrigé à l'itération 7. `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
-11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
+11. ~~**[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.**~~ Corrigé à l'itération 8. `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
 13. **[BUG – moyen] Ajout pendant une synchro : succès sans envoi.** `index.html:867,880,900-902,1349` : pendant que le POST du premier pari attend, le formulaire ajoute un second et appelle sync(), qui retourne immédiatement. Le second reste local dans bets/pendAdd, mais hors du lot toSend. À la réponse, aucune relance et syncHtml annonce « Paris enregistrés sur le serveur » (`index.html:916`). Reproduit avec POST différé, test TODO `backlog 13`. Préexistant au correctif ; traiter les changements arrivés en cours de route ou signaler leur attente. Contrôler aussi suppression/import pendant la synchro.
 19. **[BUG - moyen] Un joueur ayant marque peut etre efface si ses minutes sont arrondies a zero.** `fetch-extras.mjs:36,55-56` tronque les minutes puis ignore toute ligne <= 0, meme avec `didNotPlay` absent et 2 points marques. Reproduction synthetique dans `test/fetch-extras.test.mjs:51` (TODO backlog 19) : ajouter un joueur avec stats ['0','2','0','0','0-0'] a une feuille complete ; parseBox ne cree aucune entree pour lui. Les minutes '0:45' sont aussi tronquees a 0. Le match est ensuite marque done (`fetch-extras.mjs:113`), sans nouvel essai. Pour un joueur deja connu, la ligne manquante devient ensuite ? n'a pas joue ? et pari rembourse (`index.html:941-942,950`), au lieu du resultat de ses points. Conserver les apparitions etablies par les stats et traiter les durees sans perdre les secondes. Payloads ESPN de production non consultes ; frequence reelle non mesuree. Distinct des identifiants et champs facultatifs.
 20. **[BUG – moyen] Une ligne de stats tronquée est enregistrée comme zéro puis figée.** `fetch-extras.mjs:36,53-58,113` accepte un joueur ayant 30 minutes mais un tableau `stats: ["30"]` : points/rebonds/assists/3pts absents deviennent tous 0 via `int(undefined)`. `parseBox` enregistre cette ligne, puis `main` marque le match done sans réessai. Les props peuvent être réglés à tort sur ces zéros (`index.html:940-950`) et les moyennes sont faussées. Nouveau test TODO backlog 20 (`test/fetch-extras.test.mjs:60`) : une feuille autrement complète doit être refusée avant toute mutation si une ligne jouée manque de stats requises. Reproduction synthétique confirmée ; occurrence ESPN réelle non consultée. Distinct de 19 : minutes valides, colonnes de valeurs absentes.
@@ -40,14 +40,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 7 — backlog 10 (doublons dans un même POST), premier élément ouvert du backlog. La revue 6 n'avait pas de point à corriger sur l'itération 6 (18 accepté, fusion de `main` vérifiée).
-- Quoi (`server.mjs`, POST `/api/bets`) : le filtre du lot ajoute chaque id accepté à l'ensemble `have` (`!have.has(b.id) && have.add(b.id)`), donc un id présent deux fois dans le même envoi n'est enregistré qu'une fois.
-- Pourquoi : `{ bets: [b, b] }` écrivait deux paris identiques dans `bets.json`, comptés deux fois dans la fiche, le profit et le ROI de tous les appareils.
-- Fichiers : `server.mjs` (1 ligne), retrait du marqueur `todo: 'backlog 10'` du test de Codex (`test/server.test.mjs`).
-- Tests : `npm run lint` 4/4 ; `npm test` 72 tests : 69 réussis, 0 échec, 3 TODO (backlogs 11, 13, 19). Sans la correction (stash de `server.mjs`), le test du backlog 10 échoue.
-- Limite connue : les doublons déjà enregistrés dans `bets.json` (s'il y en a) ne sont pas nettoyés ; ce correctif empêche seulement d'en créer.
+Itération 8 — backlog 11 (id accepté au POST mais impossible à supprimer), premier élément ouvert. La revue 7 n'avait pas de point à corriger sur l'itération 7 (10 accepté).
+- Quoi (`server.mjs`, DELETE `/api/bets/:id`) : la route accepte n'importe quel segment sans « / », le décode avec `decodeURIComponent` (la page l'encode déjà), renvoie 400 si l'encodage est invalide et 404 au-delà de 40 caractères, puis supprime l'id décodé. Tout id accepté au POST (chaîne ≤ 40) est donc supprimable.
+- Pourquoi : un pari importé avec `id: "import:1"` était accepté au POST mais DELETE `/api/bets/import%3A1` renvoyait 404 ; il restait sur le serveur et bloquait la file des suppressions de la page.
+- Choix : aligner la suppression sur l'ajout plutôt que restreindre l'ajout, parce que le test de Codex fixe ce contrat (POST de `import:1` accepté, puis supprimable) et qu'un pari déjà enregistré avec un tel id doit pouvoir être retiré.
+- Fichiers : `server.mjs`, retrait du marqueur `todo: 'backlog 11'` du test de Codex (`test/server.test.mjs`).
+- Tests : `npm run lint` 4/4 ; `npm test` 81 tests : 77 réussis, 0 échec, 4 TODO (backlogs 13, 19, 20, 21). Sans la correction (stash de `server.mjs`), le test du backlog 11 échoue.
 
 ## Review
+(revue 8 en attente de Codex ; ci-dessous, la revue 7)
+
 **À CORRIGER — revue 7 par Codex ; correctif 10 accepté, nouveaux 20 et 21 à traiter.**
 
 - AGENTS.md, LOOP.md et git show a18d608 lus. Catalogue des skills vérifié : aucun skill spécialisé utile à cette revue HTML/Node ; aucun SKILL.md de projet trouvé. Branche auto-improve/2026-11-13 conservée ; aucune source modifiée, aucun push.
@@ -93,3 +95,4 @@ Revues précédentes condensées :
 - Itération 7 : backlog 10 corrigé (un même id envoyé deux fois n'est enregistré qu'une fois) ; 68 → 69 tests réussis, 4 → 3 TODO.
 
 - Revue 7 (Codex) : À CORRIGER ; 10 confirmé (parent 0/1, HEAD 1/1), sept tests complémentaires verts, nouveaux 20/21 sous TODO ; 76 réussis + 5 TODO / 81 ; itération 8, TOUR_CLAUDE.
+- Itération 8 : backlog 11 corrigé (DELETE décode l'id, tout id accepté au POST est supprimable) ; 76 → 77 tests réussis, 5 → 4 TODO.

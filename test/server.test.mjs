@@ -91,7 +91,7 @@ test('un POST contenant deux fois le même id ne doit enregistrer qu’un pari',
   assert.equal(JSON.parse(s.github().file).length, 1);
 });
 
-test('tout id accepté par POST doit pouvoir être supprimé par DELETE', { todo: 'backlog 11' }, async () => {
+test('tout id accepté par POST doit pouvoir être supprimé par DELETE', async () => {
   const s = await startServer();
   const id = 'import:1';
   const post = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({ id }) } });

@@ -119,9 +119,13 @@ createServer(async (req, res) => {
       }, `Pari ajouté (${good.map(b => b.who).join(', ')})`);
       return send(res, 200, { bets });
     }
-    const m = url.pathname.match(/^\/api\/bets\/([\w-]{1,40})$/);
+    // L'id est décodé (la page l'envoie avec encodeURIComponent) : tout id accepté au POST (≤ 40 caractères) est supprimable.
+    const m = url.pathname.match(/^\/api\/bets\/([^/]{1,200})$/);
     if (m && req.method === 'DELETE') {
-      const bets = await update(cur => cur.some(b => b.id === m[1]) ? cur.filter(b => b.id !== m[1]) : cur, `Pari supprimé ${m[1]}`);
+      let id;
+      try { id = decodeURIComponent(m[1]); } catch { return send(res, 400, { error: 'Identifiant invalide.' }); }
+      if (id.length > 40) return send(res, 404, { error: 'Introuvable.' });
+      const bets = await update(cur => cur.some(b => b.id === id) ? cur.filter(b => b.id !== id) : cur, `Pari supprimé ${id}`);
       return send(res, 200, { bets });
     }
     send(res, 404, { error: 'Introuvable.' });
