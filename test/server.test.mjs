@@ -81,3 +81,23 @@ test('serveur sans configuration : 503', async () => {
   const s = await startServer({ GITHUB_TOKEN: '', BETS_CODE: '' });
   assert.equal((await s.call('/api/bets')).status, 503);
 });
+
+
+test('un POST contenant deux fois le même id ne doit enregistrer qu’un pari', { todo: 'backlog 10' }, async () => {
+  const s = await startServer();
+  const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bets: [validBet(), validBet()] } });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.bets.length, 1);
+  assert.equal(JSON.parse(s.github().file).length, 1);
+});
+
+test('tout id accepté par POST doit pouvoir être supprimé par DELETE', { todo: 'backlog 11' }, async () => {
+  const s = await startServer();
+  const id = 'import:1';
+  const post = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({ id }) } });
+  assert.equal(post.status, 200);
+  assert.equal(post.json.bets[0].id, id);
+  const del = await s.call('/api/bets/' + encodeURIComponent(id), { method: 'DELETE', code: 'secret' });
+  assert.equal(del.status, 200);
+  assert.deepEqual(del.json.bets, []);
+});
