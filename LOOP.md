@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 7
@@ -24,7 +24,7 @@ TOUR_CLAUDE
 16. ~~**[BUG – moyen] Un match inexistant est compté comme réglé.**~~ Corrigé à l'itération 4. `index.html:938-951` lit gameById sans clé propre : `gameId: 'constructor', market: 'ml', pick: 'away'` obtient W (faux profit de 10 $ avec mise 10/cote 2). Les scores undefined produisent NaN ; par lecture, spread/total tombent sur P. L’API accepte toute chaîne gameId (`server.mjs:66`), l’import aussi (`index.html:1428`). Nouveau TODO backlog 16 : résultat attendu null, réel W au premier cas ; les variantes suivantes ne sont pas exécutées après cette assertion. Ne régler que les matchs réellement présents ; contrôler aussi l’affichage `index.html:1005`.
 1. ~~**[BUG – moyen] Pari refusé : perte locale, succès trompeur et suppressions bloquées.**~~ Confirmé terminé à l’itération 2 : refus conservé et signalé, DELETE indépendants envoyés malgré POST 400. Les deux anciens TODO passent et échouent sur `c806e4c^`. Cas concurrent préexistant suivi séparément au backlog 13.
 18. ~~**[BUG - moyen] Modifier la ligne du formulaire conserve la probabilite de l'ancienne ligne.**~~ Corrigé à l'itération 6 (probabilité invalidée si la ligne change). `index.html:1218-1224,1264,1288-1294,1322-1328,1347-1352` : p est fixe a l'ouverture/au changement de cote ; aucun gestionnaire bmLine ne le recalcule ni ne l'efface. Reproduction avec le bouton total reellement rendu : Under 220,5 a 53,7778 %, ligne remplacee par 100,5, soumission -> Under 100,5 conserve p=0,537778. Resume et suggestion de mise restent aussi bases sur l'ancienne ligne. Meme chemin pour spread/props par lecture. Test TODO `backlog 18` dans `test/form.test.mjs:36` via les vrais gestionnaires ; cas total demontre sans navigateur. Recalculer p avec la nouvelle ligne ou l'invalider et rafraichir resume/mise. Preexistant, distinct du typage facultatif et de la synchro.
-10. **[BUG – moyen] Doublons dans un même POST comptés deux fois.** `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
+10. ~~**[BUG – moyen] Doublons dans un même POST comptés deux fois.**~~ Corrigé à l'itération 7. `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
 13. **[BUG – moyen] Ajout pendant une synchro : succès sans envoi.** `index.html:867,880,900-902,1349` : pendant que le POST du premier pari attend, le formulaire ajoute un second et appelle sync(), qui retourne immédiatement. Le second reste local dans bets/pendAdd, mais hors du lot toSend. À la réponse, aucune relance et syncHtml annonce « Paris enregistrés sur le serveur » (`index.html:916`). Reproduit avec POST différé, test TODO `backlog 13`. Préexistant au correctif ; traiter les changements arrivés en cours de route ou signaler leur attente. Contrôler aussi suppression/import pendant la synchro.
 19. **[BUG - moyen] Un joueur ayant marque peut etre efface si ses minutes sont arrondies a zero.** `fetch-extras.mjs:36,55-56` tronque les minutes puis ignore toute ligne <= 0, meme avec `didNotPlay` absent et 2 points marques. Reproduction synthetique dans `test/fetch-extras.test.mjs:51` (TODO backlog 19) : ajouter un joueur avec stats ['0','2','0','0','0-0'] a une feuille complete ; parseBox ne cree aucune entree pour lui. Les minutes '0:45' sont aussi tronquees a 0. Le match est ensuite marque done (`fetch-extras.mjs:113`), sans nouvel essai. Pour un joueur deja connu, la ligne manquante devient ensuite ? n'a pas joue ? et pari rembourse (`index.html:941-942,950`), au lieu du resultat de ses points. Conserver les apparitions etablies par les stats et traiter les durees sans perdre les secondes. Payloads ESPN de production non consultes ; frequence reelle non mesuree. Distinct des identifiants et champs facultatifs.
@@ -38,15 +38,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 6 — backlog 18 (probabilité de l'ancienne ligne conservée). La revue 5 n'avait pas de point à corriger sur l'itération 5 (17 accepté ; remarque notée : `closeOdds` est aussi un champ facultatif utilisé au rendu, mais produit numérique par les chemins normaux).
-- Quoi (`index.html`, formulaire de pari) : à l'ouverture, `draft.line0` retient la ligne pour laquelle la probabilité a été calculée (`lineKey()`, ramenée au point de vue du domicile pour l'écart, pour que le changement de côté ne compte pas comme une modification). `curP()` renvoie la probabilité seulement si la ligne n'a pas changé, sinon `null`. Elle remplace `draft.p` pour le résumé, la mise suggérée et le pari enregistré. Un écouteur `input` sur `#bmLine` rafraîchit le résumé et la mise suggérée ; le résumé affiche « Ligne modifiée : pas de probabilité du modèle pour cette ligne. ».
-- Pourquoi : un Under 100,5 était enregistré avec la probabilité de l'Under 220,5 (53,8 %), ce qui fausse la colonne « Modèle » et la mise suggérée.
-- Choix : invalider plutôt que recalculer, pour rester minimal (le recalcul demanderait de rouvrir la projection du match ou du joueur dans le formulaire).
-- Fichiers : `index.html`, retrait du marqueur `todo: 'backlog 18'` du test de Codex (`test/form.test.mjs`).
-- Tests : `npm run lint` 4/4 ; `npm test` 63 tests : 60 réussis, 0 échec, 3 TODO (backlogs 10, 11, 13). Sans la correction (stash de `index.html`), le test du backlog 18 échoue.
-- Changement visible : message « Ligne modifiée… » dans le formulaire (noté dans « À valider »).
+Itération 7 — backlog 10 (doublons dans un même POST), premier élément ouvert du backlog. La revue 6 n'avait pas de point à corriger sur l'itération 6 (18 accepté, fusion de `main` vérifiée).
+- Quoi (`server.mjs`, POST `/api/bets`) : le filtre du lot ajoute chaque id accepté à l'ensemble `have` (`!have.has(b.id) && have.add(b.id)`), donc un id présent deux fois dans le même envoi n'est enregistré qu'une fois.
+- Pourquoi : `{ bets: [b, b] }` écrivait deux paris identiques dans `bets.json`, comptés deux fois dans la fiche, le profit et le ROI de tous les appareils.
+- Fichiers : `server.mjs` (1 ligne), retrait du marqueur `todo: 'backlog 10'` du test de Codex (`test/server.test.mjs`).
+- Tests : `npm run lint` 4/4 ; `npm test` 72 tests : 69 réussis, 0 échec, 3 TODO (backlogs 11, 13, 19). Sans la correction (stash de `server.mjs`), le test du backlog 10 échoue.
+- Limite connue : les doublons déjà enregistrés dans `bets.json` (s'il y en a) ne sont pas nettoyés ; ce correctif empêche seulement d'en créer.
 
 ## Review
+(revue 7 en attente de Codex ; ci-dessous, la revue 6)
+
 **A CORRIGER - revue 6 par Codex ; correctif 18 accepte, nouveau 19 a traiter.**
 
 - AGENTS.md, LOOP.md et git show 8eec8c4 lus. Catalogue des skills verifie : aucun skill specialise utile pour cette revue HTML/Node ; aucun SKILL.md de projet trouve. Aucun changement source, aucun push, branche auto-improve/2026-11-13 conservee.
@@ -87,3 +88,4 @@ Revues precedentes condensees :
 - Itération 6 : backlog 18 corrigé (probabilité invalidée quand la ligne du formulaire change) ; 59 → 60 tests réussis, 4 → 3 TODO.
 
 - Revue 6 (Codex) : A CORRIGER ; 18 confirme (parent 0/1, HEAD 1/1), sept tests de formulaire supplementaires, nouveau 19 (minutes arrondies et joueur efface) ; 68 reussis + 4 TODO ; iteration 7, TOUR_CLAUDE.
+- Itération 7 : backlog 10 corrigé (un même id envoyé deux fois n'est enregistré qu'une fois) ; 68 → 69 tests réussis, 4 → 3 TODO.

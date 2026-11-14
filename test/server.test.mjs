@@ -83,7 +83,7 @@ test('serveur sans configuration : 503', async () => {
 });
 
 
-test('un POST contenant deux fois le même id ne doit enregistrer qu’un pari', { todo: 'backlog 10' }, async () => {
+test('un POST contenant deux fois le même id ne doit enregistrer qu’un pari', async () => {
   const s = await startServer();
   const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bets: [validBet(), validBet()] } });
   assert.equal(r.status, 200);

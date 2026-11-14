@@ -113,7 +113,8 @@ createServer(async (req, res) => {
       if (!good.length) return send(res, 400, { error: 'Pari invalide.' });
       const bets = await update(cur => {
         const have = new Set(cur.map(b => b.id));
-        const add = good.filter(b => !have.has(b.id));
+        // Un id accepté compte aussi pour le reste du lot : deux fois le même pari dans un envoi = un seul pari.
+        const add = good.filter(b => !have.has(b.id) && have.add(b.id));
         return add.length ? cur.concat(add) : cur;
       }, `Pari ajouté (${good.map(b => b.who).join(', ')})`);
       return send(res, 200, { bets });
