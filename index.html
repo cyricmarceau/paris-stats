@@ -335,7 +335,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 20</span></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 21</span></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -387,6 +387,10 @@
   function f1(x) { return x.toFixed(1); }
   function pct(x) { return (x * 100).toFixed(0) + " %"; }
   function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : 0; }
+  // Lecture d'une clé venant d'un pari (id de match, de joueur, stat) : ignore les propriétés héritées
+  // comme « constructor » ou « toString ». Les dictionnaires remplis par la page sont créés sans prototype.
+  function own(o, k) { return o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
+  function dict() { return Object.create(null); }
 
   // ---- Statistiques par équipe ----
   var teams = {};
@@ -574,7 +578,8 @@
       "</div></div>";
   }
 
-  function abbr(id) { return teams[id] ? teams[id].info.abbr : "?"; }
+  // hasOwnProperty : un id comme « constructor » ne doit pas tomber sur une propriété héritée de Object.prototype.
+  function abbr(id) { return Object.prototype.hasOwnProperty.call(teams, id) ? teams[id].info.abbr : "?"; }
 
   // ---- Face-à-face et blessures ----
   var PL = window.NBA_PLAYERS && window.NBA_PLAYERS.players ? window.NBA_PLAYERS : null;
@@ -814,7 +819,7 @@
   try { bets = JSON.parse(localStorage.getItem(BETS_KEY) || "[]"); if (!Array.isArray(bets)) bets = []; } catch (e) { bets = []; }
   function saveBets() { try { localStorage.setItem(BETS_KEY, JSON.stringify(bets)); } catch (e) {} }
 
-  var gameById = {}, upcomingById = {};
+  var gameById = dict(), upcomingById = dict();
   data.games.forEach(function (g) { gameById[g.id] = g; });
   (data.upcoming || []).forEach(function (g) { upcomingById[g.id] = g; });
 
@@ -854,13 +859,13 @@
   }
   // Liste du serveur + paris locaux pas encore envoyés ; garde les cotes de fermeture vues sur cet appareil.
   function adopt(serverBets) {
-    var local = {}; bets.forEach(function (b) { local[b.id] = b; });
+    var local = dict(); bets.forEach(function (b) { local[b.id] = b; });
     var out = serverBets.filter(function (b) { return pendDel.indexOf(b.id) < 0; }).map(function (b) {
       var l = local[b.id];
       if (l) { if (l.closeOdds) b.closeOdds = l.closeOdds; if (typeof l.closeLine === "number") b.closeLine = l.closeLine; }
       return b;
     });
-    var ids = {}; out.forEach(function (b) { ids[b.id] = true; });
+    var ids = dict(); out.forEach(function (b) { ids[b.id] = true; });
     pendAdd.forEach(function (id) { if (local[id] && !ids[id]) out.push(local[id]); });
     bets = out; saveBets(); updateClose();
   }
@@ -871,29 +876,49 @@
     setSync("busy");
     api("/api/bets").then(function (j) {
       if (!lsGet("paris-stats-migrated", false)) { // 1re connexion : envoie les paris déjà enregistrés sur cet appareil
-        var have = {}; (j.bets || []).forEach(function (b) { have[b.id] = true; });
+        var have = dict(); (j.bets || []).forEach(function (b) { have[b.id] = true; });
         bets.forEach(function (b) { if (!have[b.id] && pendAdd.indexOf(b.id) < 0) pendAdd.push(b.id); });
         savePend(); lsSet("paris-stats-migrated", true);
       }
       adopt(j.bets || []);
       if (!pendAdd.length && !pendDel.length) return j;
       if (!teamCode) { var e = new Error("code"); e.status = 401; throw e; }
-      var chain = Promise.resolve(j);
+      var chain = Promise.resolve(j), refused = false;
       if (pendAdd.length) {
         var toSend = bets.filter(function (b) { return pendAdd.indexOf(b.id) >= 0; });
         chain = chain.then(function () { return api("/api/bets", { method: "POST", body: { bets: toSend } }); })
-          .then(function (r) { pendAdd = pendAdd.filter(function (id) { return !toSend.some(function (b) { return b.id === id; }); }); savePend(); adopt(r.bets || []); return r; });
+          // Ne retire de l'attente que les paris que le serveur a vraiment gardés : un pari refusé reste sur l'appareil.
+          .then(function (r) {
+            var kept = dict(); (r.bets || []).forEach(function (b) { kept[b.id] = true; });
+            refused = toSend.some(function (b) { return !kept[b.id]; });
+            pendAdd = pendAdd.filter(function (id) { return !kept[id]; }); savePend(); adopt(r.bets || []); return r;
+          }, function (e) {
+            // Tout refusé (400) : on envoie quand même les suppressions, puis on signale le refus.
+            if (e && e.status === 400) { refused = true; return; }
+            throw e;
+          });
       }
+      var delRefused = false;
       pendDel.slice().forEach(function (id) {
         chain = chain.then(function () { return api("/api/bets/" + encodeURIComponent(id), { method: "DELETE" }); })
-          .then(function (r) { pendDel = pendDel.filter(function (x) { return x !== id; }); savePend(); adopt(r.bets || []); return r; });
+          .then(function (r) { pendDel = pendDel.filter(function (x) { return x !== id; }); savePend(); adopt(r.bets || []); return r; },
+            // Suppression refusée (400/404) ou id impossible à mettre dans l'adresse (URIError d'encodeURIComponent,
+            // ancien id avec un demi-caractère Unicode) : on la garde en attente et on passe aux suivantes.
+            function (e) { if (e && (e.status === 400 || e.status === 404 || e.name === "URIError")) { delRefused = true; return; } throw e; });
       });
-      return chain;
+      return chain.then(function () {
+        if (refused || delRefused) {
+          var e = new Error("refus"); e.status = 400;
+          e.userMsg = refused ? null : "Le serveur a refusé une suppression ; elle reste en attente.";
+          throw e;
+        }
+      });
     }).then(function () {
       setSync("ok"); renderBets();
     }, function (e) {
       if (e && e.status === 401) setSync("code", teamCode ? "Code d'équipe invalide." : "");
       else if (e && e.status === 503) setSync("off", "Serveur pas encore configuré.");
+      else if (e && e.status === 400) setSync("off", e.userMsg || "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
       else setSync("off", "Serveur injoignable.");
       renderBets();
     }).then(function () { syncing = false; });
@@ -917,13 +942,13 @@
   function betLabel(b) {
     if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
     if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
-    if (b.market === "prop") return (b.playerName || "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (STATS[b.stat] ? STATS[b.stat].short : "");
+    if (b.market === "prop") return (typeof b.playerName === "string" && b.playerName ? b.playerName : "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(STATS, b.stat) ? STATS[b.stat].short : "");
     return (b.pick === "over" ? "Over " : "Under ") + b.line;
   }
 
   function propValue(b) {
-    if (!PL || !STATS[b.stat] || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
-    var pl = PL.players[b.playerId], row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
+    if (!PL || !own(STATS, b.stat) || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
+    var pl = own(PL.players, b.playerId), row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
     return row ? row[STATS[b.stat].i] : null; // null = n'a pas joué
   }
   function betResult(b) {
@@ -996,7 +1021,7 @@
         list.map(function (b) {
           var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
           var detail = g ? g.awayScore + "-" + g.homeScore : "";
-          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + STATS[b.stat].short; }
+          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + own(STATS, b.stat).short; }
           var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (detail ? ' <small class="sub">' + esc(detail) + "</small>" : "")
                       : '<span class="res-pending">En attente</span>';
           return "<tr>" +
@@ -1006,7 +1031,7 @@
             "<td>" + esc(b.who || "") + "</td>" +
             '<td class="num">' + b.odds.toFixed(2) + "</td>" +
             '<td class="num">' + b.stake.toFixed(2) + " $</td>" +
-            '<td class="num">' + (b.p ? pct(b.p) : "") + "</td>" +
+            '<td class="num">' + (typeof b.p === "number" && isFinite(b.p) && b.p > 0 ? pct(b.p) : "") + "</td>" +
             "<td>" + res + "</td>" +
             '<td class="num ' + (pr > 0 ? "pos" : pr < 0 ? "neg" : "") + '">' + (pr === null ? "" : (pr > 0 ? "+" : "") + pr.toFixed(2) + " $") + "</td>" +
             '<td class="num ' + (c ? (c.v > 0 ? "pos" : c.v < 0 ? "neg" : "") : "") + '">' + (c ? esc(c.txt) : "") + "</td>" +
@@ -1238,10 +1263,22 @@
     $("bmLine").value = line;
     draft.pick = null;
     setPick(pick);
+    draft.line0 = m === "ml" ? null : lineKey(); // ligne pour laquelle la probabilité du modèle a été calculée
+    updateSum();
     $("bmWho").value = whoLast;
     renderWho();
     modal.hidden = false;
     $("bmStake").focus();
+  }
+
+  // Ligne saisie, ramenée au point de vue du domicile pour l'écart (le changement de côté inverse son signe).
+  function lineKey() {
+    var lv = parseFloat($("bmLine").value);
+    return draft.market === "spread" && draft.pick === "away" ? -lv : lv;
+  }
+  // Probabilité du modèle, seulement si la ligne n'a pas été modifiée depuis l'ouverture du formulaire.
+  function curP() {
+    return draft.line0 != null && lineKey() !== draft.line0 ? null : draft.p;
   }
 
   function setPick(v) {
@@ -1253,7 +1290,7 @@
     var d = draft.odds[v];
     $("bmOdds").value = isFinite(d) ? d.toFixed(2) : "";
     if (prev && prev !== v && draft.market === "spread" && $("bmLine").value !== "") $("bmLine").value = -parseFloat($("bmLine").value);
-    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value));
+    var sug = suggestedStake(curP(), parseFloat($("bmOdds").value));
     if (sug) $("bmStake").value = sug;
     else if (!prev) $("bmStake").value = "";
     renderStakeChips();
@@ -1261,7 +1298,7 @@
   }
 
   function renderStakeChips() {
-    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value)), cur = parseFloat($("bmStake").value);
+    var sug = suggestedStake(curP(), parseFloat($("bmOdds").value)), cur = parseFloat($("bmStake").value);
     var list = (sug ? [[sug, "Suggérée " + sug + " $"]] : []).concat([10, 20, 50, 100].map(function (v) { return [v, v + " $"]; }));
     $("bmStakeChips").innerHTML = list.map(function (x) {
       return '<button type="button" data-stake="' + x[0] + '"' + (x[0] === cur ? ' class="on"' : "") + ">" + x[1] + "</button>";
@@ -1274,10 +1311,10 @@
     }).join("");
   }
   function updateSum() {
-    var dec = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value), p = draft.p;
+    var dec = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value), p = curP();
     var sum = "";
     if (p) sum += "Notre chance : <b>" + pct(p) + "</b>" + (dec > 1 ? " · notre cote " + (1 / p).toFixed(2) + " · " + verdict(p, dec) : "");
-    else sum += "Pas de probabilité du modèle pour ce pari.";
+    else sum += draft.line0 != null && draft.p != null ? "Ligne modifiée : pas de probabilité du modèle pour cette ligne." : "Pas de probabilité du modèle pour ce pari.";
     if (draft.market !== "ml" && draft.market !== "prop") sum += '<br><span class="sub">Cote -110 (1.91) par défaut : remplace-la par celle du book.</span>';
     $("bmSum").innerHTML = sum;
     $("bmGain").innerHTML = dec > 1 && stake > 0
@@ -1314,6 +1351,7 @@
     renderStakeChips(); updateSum();
   });
   $("bmStake").addEventListener("input", updateSum);
+  $("bmLine").addEventListener("input", function () { renderStakeChips(); updateSum(); });
   function closeModal() { modal.hidden = true; }
   $("bmCancel").addEventListener("click", closeModal);
   $("bmX").addEventListener("click", closeModal);
@@ -1332,7 +1370,7 @@
     if (!(stake > 0)) { $("bmStake").focus(); return; }
     if (!who) { $("bmWho").focus(); return; }
     var b = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), gameId: draft.gameId, date: draft.date, homeId: draft.homeId, awayId: draft.awayId,
-      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: draft.p, createdAt: new Date().toISOString() };
+      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: curP(), createdAt: new Date().toISOString() };
     if (draft.market === "prop") { b.playerId = draft.playerId; b.playerName = draft.playerName; b.stat = draft.stat; }
     if (b.market !== "ml") {
       var lv = parseFloat($("bmLine").value);
@@ -1414,10 +1452,10 @@
       var m2 = document.getElementById("betMsg"), arr;
       try { arr = JSON.parse(document.getElementById("betImportTxt").value); } catch (err) { m2.textContent = "Texte invalide."; return; }
       if (!Array.isArray(arr)) { m2.textContent = "Texte invalide."; return; }
-      var have = {}; bets.forEach(function (b) { have[b.id] = true; });
+      var have = dict(); bets.forEach(function (b) { have[b.id] = true; });
       var added = 0;
       arr.forEach(function (b) {
-        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!STATS[b.stat]))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
+        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!own(STATS, b.stat)))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
       });
       saveBets(); savePend(); renderBets(); if (added) sync();
       document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";

@@ -62,7 +62,15 @@ async function update(change, message) {
 }
 
 function validBet(b) {
-  return b && typeof b.id === 'string' && b.id.length <= 40 && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
+  const teamId = v => typeof v === 'string' && /^\d{1,10}$/.test(v); // identifiants ESPN numériques
+  // id : doit pouvoir revenir intact dans l'adresse du DELETE (pas vide, pas « . » ni « .. », Unicode bien formé).
+  const idOk = typeof b?.id === 'string' && b.id.length >= 1 && b.id.length <= 40 && b.id !== '.' && b.id !== '..' && b.id.isWellFormed();
+  return b && idOk && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
+    teamId(b.homeId) && teamId(b.awayId) &&
+    // Champs facultatifs affichés par la page : bon type ou absents.
+    (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&
+    (b.playerName == null || (typeof b.playerName === 'string' && b.playerName.length <= 80)) &&
+    (b.market !== 'prop' || (typeof b.playerId === 'string' && /^\d{1,12}$/.test(b.playerId) && ['pts', 'reb', 'ast', 'tpm'].includes(b.stat))) &&
     Number.isFinite(b.odds) && b.odds > 1 && b.odds < 1000 && Number.isFinite(b.stake) && b.stake > 0 && b.stake < 1e6 &&
     typeof b.who === 'string' && b.who.length <= 40 && Number.isFinite(Date.parse(b.date)) &&
     (b.market === 'total' || b.market === 'prop' ? ['over', 'under'] : ['home', 'away']).includes(b.pick) &&
@@ -107,14 +115,19 @@ createServer(async (req, res) => {
       if (!good.length) return send(res, 400, { error: 'Pari invalide.' });
       const bets = await update(cur => {
         const have = new Set(cur.map(b => b.id));
-        const add = good.filter(b => !have.has(b.id));
+        // Un id accepté compte aussi pour le reste du lot : deux fois le même pari dans un envoi = un seul pari.
+        const add = good.filter(b => !have.has(b.id) && have.add(b.id));
         return add.length ? cur.concat(add) : cur;
       }, `Pari ajouté (${good.map(b => b.who).join(', ')})`);
       return send(res, 200, { bets });
     }
-    const m = url.pathname.match(/^\/api\/bets\/([\w-]{1,40})$/);
+    // L'id est décodé (la page l'envoie avec encodeURIComponent) : tout id accepté au POST (≤ 40 caractères) est supprimable.
+    const m = url.pathname.match(/^\/api\/bets\/([^/]+)$/);
     if (m && req.method === 'DELETE') {
-      const bets = await update(cur => cur.some(b => b.id === m[1]) ? cur.filter(b => b.id !== m[1]) : cur, `Pari supprimé ${m[1]}`);
+      let id;
+      try { id = decodeURIComponent(m[1]); } catch { return send(res, 400, { error: 'Identifiant invalide.' }); }
+      if (id.length > 40) return send(res, 404, { error: 'Introuvable.' });
+      const bets = await update(cur => cur.some(b => b.id === id) ? cur.filter(b => b.id !== id) : cur, `Pari supprimé ${id}`);
       return send(res, 200, { bets });
     }
     send(res, 404, { error: 'Introuvable.' });

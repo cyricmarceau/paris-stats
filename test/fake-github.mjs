@@ -35,6 +35,7 @@ globalThis.fetch = async (input, init = {}) => {
       if (body.sha !== want) return reply(409, {});
       state.file = Buffer.from(body.content, 'base64').toString('utf8');
       state.sha++; state.puts++;
+      (state.messages ||= []).push(body.message);
       return reply(200, { content: { sha: 's' + state.sha } });
     }
     return reply(404, {});

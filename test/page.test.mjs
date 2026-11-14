@@ -133,3 +133,45 @@ test('libellé d’un pari', () => {
   assert.equal(p.betLabel(bet({ market: 'spread', pick: 'away', line: -3.5 })), 'T2 +3.5');
   assert.equal(p.betLabel(bet({ market: 'total', pick: 'under', line: 221.5 })), 'Under 221.5');
 });
+
+test('un identifiant d’équipe hérité ne doit pas empêcher le chargement des paris', () => {
+  assert.doesNotThrow(() => loadPage({data:sampleData(),storage:{
+    'paris-stats-bets':JSON.stringify([bet({market:'ml',pick:'home',homeId:'constructor'})])
+  }}));
+});
+
+test('backlog 15: inherited player id must not prevent loading saved props', () => {
+  const players = { done: ['g1'], players: {}, injuries: {} };
+  assert.doesNotThrow(() => loadPage({ data: sampleData(), players, storage: {
+    'paris-stats-bets': JSON.stringify([bet({ market: 'prop', pick: 'over', line: 20.5, playerId: 'constructor', stat: 'pts' })])
+  } }));
+});
+
+test('backlog 16: inherited game ids must remain pending instead of settling', () => {
+  const p = loadPage({ data: sampleData() });
+  for (const gameId of ['constructor', '__proto__', 'toString']) {
+    for (const market of ['ml', 'spread', 'total']) {
+      const b = bet({ gameId, market, pick: market === 'total' ? 'over' : 'away', line: 200.5 });
+      assert.equal(p.betResult(b), null, `${gameId}/${market}: no completed game exists`);
+    }
+  }
+});
+
+// Une donnée facultative reçue de l'API/import ne doit pas bloquer tout le rendu.
+test('backlog 17: malformed optional probability must not prevent page loading', () => {
+  assert.doesNotThrow(() => loadPage({ data: sampleData(), storage: {
+    'paris-stats-bets': JSON.stringify([bet({ market: 'ml', pick: 'home', p: { toString: null } })])
+  } }));
+});
+
+test('backlog 17: malformed optional player name must not prevent page loading', () => {
+  assert.doesNotThrow(() => loadPage({ data: sampleData(), storage: {
+    'paris-stats-bets': JSON.stringify([bet({ market: 'prop', pick: 'over', line: 20.5, playerId: '123', stat: 'pts', playerName: { toString: null } })])
+  } }));
+});
+
+test('backlog 23 : ancienne closeOdds mal typee ne bloque pas le rendu', {todo:'backlog 23'}, () => {
+  assert.doesNotThrow(()=>loadPage({data:sampleData(),storage:{
+    'paris-stats-bets':JSON.stringify([bet({market:'ml',pick:'home',closeOdds:{toString:null}})])
+  }}));
+});
