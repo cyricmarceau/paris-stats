@@ -203,6 +203,7 @@
   #meta, #maj { color: var(--muted-foreground); }
   #maj b { color: var(--foreground); }
   .live { background: #15352b; border-color: #31624c; font-size: 11px; }
+  .rev { display: inline-block; vertical-align: middle; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: 11px; font-weight: 600; letter-spacing: .01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
   nav.menu { top: 12px; width: 100%; margin: 26px 0 28px; gap: 6px; padding: 6px; background: #131d2c; border-color: var(--border); border-radius: 16px; box-shadow: 0 8px 24px #0004; }
   nav.menu button { min-height: 46px; flex: 1; gap: 4px; color: var(--muted-foreground); font-size: 14px; border-radius: 10px; }
   nav.menu button.on { color: #0b2928; background: var(--accent); box-shadow: none; }
@@ -284,6 +285,7 @@
     h1 { font-size: 27px; letter-spacing: -.035em; }
     h1::before { font-size: 10px; margin-bottom: 8px; }
     .live { font-size: 10px; margin-left: 4px; }
+  .rev { font-size: 10px; }
     #meta, #maj { font-size: 12px; line-height: 1.65; }
     #maj { margin-top: 5px; }
     nav.menu { position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 10; max-width: none; width: 100%; margin: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); gap: 4px; border: 0; border-top: 1px solid #43536a; border-radius: 0; background: #131d2c; box-shadow: 0 -8px 28px #0006; }
@@ -332,7 +334,8 @@
 </style>
 </head>
 <body>
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span></h1>
+<!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 20</span></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 

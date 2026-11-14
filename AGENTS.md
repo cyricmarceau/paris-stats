@@ -19,6 +19,7 @@ Site de stats NBA et de suivi de paris pour Cyric et Will. Répondre en françai
 - Rafraîchir les données en local : `node fetch-data.mjs` puis `node fetch-extras.mjs`.
 
 ## Règles
+- Numéro de révision affiché en haut du site (`id="rev"` dans `index.html`) : l'augmenter de 1 dans chaque PR qui modifie `index.html` (une seule fois par PR, même si elle contient plusieurs commits).
 - Ne jamais travailler sur `main` : une branche par changement, puis une PR. Cyric a demandé que les PR prêtes (sans conflit, tests verts, testées) soient fusionnées sans redemander, puis que le déploiement soit vérifié sur le site.
 - Lancer `npm test` avant chaque commit ; ajouter un test pour chaque bug corrigé. Ne jamais supprimer un test pour le faire passer.
 - Le script de `index.html` dépend de nombreux `id`, classes et attributs `data-` : ne pas les renommer. Une refonte visuelle se fait dans le bloc `<style>`.
