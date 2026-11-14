@@ -273,3 +273,51 @@ test('revue 7 : lot avec id en attente dupliqué revient à un seul pari après 
   assert.deepEqual(p.state().pendAdd,[]);
   assert.equal(p.state().sync.state,'ok');
 });
+
+for (const status of [401,503,'network']) {
+  test('revue 9 : DELETE '+status+' arrete la chaine et permet le reessai',async()=>{
+    const calls=[],storage=storageWith([]); let failing=true;
+    storage['paris-stats-pend-del']=JSON.stringify(['bad','good']);
+    const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+      if(opts.method==='DELETE') {
+        calls.push(url);
+        if(failing && url.endsWith('/bad')) return status==='network' ? Promise.reject(new Error('offline')) : Promise.resolve({ok:false,status,json:async()=>({})});
+      }
+      return Promise.resolve({ok:true,status:200,json:async()=>({bets:[]})});
+    }});
+    await flush();
+    assert.equal(calls.length,1);
+    assert.deepEqual(p.state().pendDel,['bad','good']);
+    assert.equal(p.state().sync.state,status===401?'code':'off');
+    assert.equal(p.state().sync.msg,status===401 ? "Code d'\u00e9quipe invalide." : status===503 ? 'Serveur pas encore configur\u00e9.' : 'Serveur injoignable.');
+    failing=false;p.sync();await flush();
+    assert.deepEqual(p.state().pendDel,[]);
+    assert.equal(p.state().sync.state,'ok');
+  });
+}
+
+test('revue 9 : userMsg local de suppression et priorite du refus POST',async()=>{
+  for(const withPost of [false,true]) {
+    const storage=storageWith(withPost?[longName]:[]);
+    storage['paris-stats-pend-del']=JSON.stringify(['bad','good']);
+    const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+      const refused=opts.method==='POST'||(opts.method==='DELETE'&&url.endsWith('/bad'));
+      return Promise.resolve({ok:!refused,status:refused?400:200,json:async()=>({bets:[],error:'interne',userMsg:'message externe'})});
+    }});
+    await flush();
+    assert.equal(p.state().sync.msg,withPost ? 'Le serveur a refus\u00e9 un pari (nom de plus de 40 caract\u00e8res, cote ou mise hors limites).' : 'Le serveur a refus\u00e9 une suppression ; elle reste en attente.');
+    assert.deepEqual(p.state().pendDel,['bad']);
+  }
+});
+
+test('backlog 11 : ancien id surrogate ne bloque pas les suppressions independantes',{todo:'backlog 11'},async()=>{
+  const storage=storageWith([]),calls=[];
+  storage['paris-stats-pend-del']=JSON.stringify(['\ud800','good']);
+  const p=loadPage({data:sampleData(),storage,fetch(url,opts){
+    if(opts.method==='DELETE')calls.push(url);
+    return Promise.resolve({ok:true,status:200,json:async()=>({bets:[]})});
+  }});
+  await flush();
+  assert.ok(calls.some(url=>url.endsWith('/good')),'URIError bloque encore good');
+  assert.deepEqual(p.state().pendDel,['\ud800']);
+});

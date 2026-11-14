@@ -169,3 +169,9 @@ test('backlog 17: malformed optional player name must not prevent page loading',
     'paris-stats-bets': JSON.stringify([bet({ market: 'prop', pick: 'over', line: 20.5, playerId: '123', stat: 'pts', playerName: { toString: null } })])
   } }));
 });
+
+test('backlog 23 : ancienne closeOdds mal typee ne bloque pas le rendu', {todo:'backlog 23'}, () => {
+  assert.doesNotThrow(()=>loadPage({data:sampleData(),storage:{
+    'paris-stats-bets':JSON.stringify([bet({market:'ml',pick:'home',closeOdds:{toString:null}})])
+  }}));
+});

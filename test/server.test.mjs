@@ -275,3 +275,20 @@ test('backlog 21 : message GitHub ne cite que le parieur effectivement ajoute', 
   assert.deepEqual(r.json.bets,[validBet({who:'Premier'})]);
   assert.deepEqual(s.github().messages,['Pari ajouté (Premier)']);
 });
+
+// Revue 9 : la limite HTTP borne les URL avant le routage ; aucun PUT sur les segments rejet?s.
+test('revue 9 : DELETE tres long et id deja absent', async () => {
+  const s=await startServer();
+  assert.equal((await s.call('/api/bets/'+ 'x'.repeat(12000),{method:'DELETE',code:'secret'})).status,404);
+  assert.equal((await s.call('/api/bets/'+ 'x'.repeat(20000),{method:'DELETE',code:'secret'})).status,431);
+  assert.equal(s.github().puts,0);
+  assert.equal((await s.call('/api/bets/deja-absent',{method:'DELETE',code:'secret'})).status,200);
+  assert.equal((await s.call('/health')).status,200);
+});
+
+test('backlog 23 : closeOdds non numerique refuse avant stockage', {todo:'backlog 23'}, async () => {
+  const s=await startServer();
+  const r=await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({closeOdds:{toString:null}})}});
+  assert.equal(r.status,400);
+  assert.equal(s.github().puts,0);
+});
