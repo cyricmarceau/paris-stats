@@ -1313,6 +1313,14 @@
     if (i === sortCol) sortDir = -sortDir; else { sortCol = i; sortDir = cols[i].text ? 1 : -1; }
     document.getElementById("table").innerHTML = tableHtml();
   });
+
+  // Accès pour les tests automatisés (test/page-harness.mjs) ; sans effet dans le navigateur.
+  if (typeof window.__PS_TEST__ === "function") window.__PS_TEST__({
+    normCdf: normCdf, americanToDecimal: americanToDecimal, project: project, withMarket: withMarket,
+    verdict: verdict, isHot: isHot, betResult: betResult, betProfit: betProfit, betClv: betClv, betLabel: betLabel,
+    teams: teams, leagueAvg: function () { return leagueAvg; }, sync: sync,
+    state: function () { return { bets: bets, pendAdd: pendAdd, pendDel: pendDel, sync: SYNC }; }
+  });
 })();
 </script>
 </body>
