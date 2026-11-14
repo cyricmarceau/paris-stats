@@ -33,7 +33,7 @@ for (const odds of [null, { spread: -4.5, total: 220.5 }]) {
   }
 }
 
-test('backlog 18: changer la ligne du total ne doit pas conserver la probabilité initiale', { todo: 'backlog 18' }, () => {
+test('backlog 18: changer la ligne du total ne doit pas conserver la probabilité initiale', () => {
   const p = loadPage({ data: sampleData({ upcomingOdds: { total: 220.5 } }) });
   const attrs = openMarket(p, 'total');
   const line = p.document.getElementById('bmLine');

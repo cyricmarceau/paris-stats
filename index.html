@@ -1250,10 +1250,22 @@
     $("bmLine").value = line;
     draft.pick = null;
     setPick(pick);
+    draft.line0 = m === "ml" ? null : lineKey(); // ligne pour laquelle la probabilité du modèle a été calculée
+    updateSum();
     $("bmWho").value = whoLast;
     renderWho();
     modal.hidden = false;
     $("bmStake").focus();
+  }
+
+  // Ligne saisie, ramenée au point de vue du domicile pour l'écart (le changement de côté inverse son signe).
+  function lineKey() {
+    var lv = parseFloat($("bmLine").value);
+    return draft.market === "spread" && draft.pick === "away" ? -lv : lv;
+  }
+  // Probabilité du modèle, seulement si la ligne n'a pas été modifiée depuis l'ouverture du formulaire.
+  function curP() {
+    return draft.line0 != null && lineKey() !== draft.line0 ? null : draft.p;
   }
 
   function setPick(v) {
@@ -1265,7 +1277,7 @@
     var d = draft.odds[v];
     $("bmOdds").value = isFinite(d) ? d.toFixed(2) : "";
     if (prev && prev !== v && draft.market === "spread" && $("bmLine").value !== "") $("bmLine").value = -parseFloat($("bmLine").value);
-    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value));
+    var sug = suggestedStake(curP(), parseFloat($("bmOdds").value));
     if (sug) $("bmStake").value = sug;
     else if (!prev) $("bmStake").value = "";
     renderStakeChips();
@@ -1273,7 +1285,7 @@
   }
 
   function renderStakeChips() {
-    var sug = suggestedStake(draft.p, parseFloat($("bmOdds").value)), cur = parseFloat($("bmStake").value);
+    var sug = suggestedStake(curP(), parseFloat($("bmOdds").value)), cur = parseFloat($("bmStake").value);
     var list = (sug ? [[sug, "Suggérée " + sug + " $"]] : []).concat([10, 20, 50, 100].map(function (v) { return [v, v + " $"]; }));
     $("bmStakeChips").innerHTML = list.map(function (x) {
       return '<button type="button" data-stake="' + x[0] + '"' + (x[0] === cur ? ' class="on"' : "") + ">" + x[1] + "</button>";
@@ -1286,10 +1298,10 @@
     }).join("");
   }
   function updateSum() {
-    var dec = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value), p = draft.p;
+    var dec = parseFloat($("bmOdds").value), stake = parseFloat($("bmStake").value), p = curP();
     var sum = "";
     if (p) sum += "Notre chance : <b>" + pct(p) + "</b>" + (dec > 1 ? " · notre cote " + (1 / p).toFixed(2) + " · " + verdict(p, dec) : "");
-    else sum += "Pas de probabilité du modèle pour ce pari.";
+    else sum += draft.line0 != null && draft.p != null ? "Ligne modifiée : pas de probabilité du modèle pour cette ligne." : "Pas de probabilité du modèle pour ce pari.";
     if (draft.market !== "ml" && draft.market !== "prop") sum += '<br><span class="sub">Cote -110 (1.91) par défaut : remplace-la par celle du book.</span>';
     $("bmSum").innerHTML = sum;
     $("bmGain").innerHTML = dec > 1 && stake > 0
@@ -1326,6 +1338,7 @@
     renderStakeChips(); updateSum();
   });
   $("bmStake").addEventListener("input", updateSum);
+  $("bmLine").addEventListener("input", function () { renderStakeChips(); updateSum(); });
   function closeModal() { modal.hidden = true; }
   $("bmCancel").addEventListener("click", closeModal);
   $("bmX").addEventListener("click", closeModal);
@@ -1344,7 +1357,7 @@
     if (!(stake > 0)) { $("bmStake").focus(); return; }
     if (!who) { $("bmWho").focus(); return; }
     var b = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), gameId: draft.gameId, date: draft.date, homeId: draft.homeId, awayId: draft.awayId,
-      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: draft.p, createdAt: new Date().toISOString() };
+      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: curP(), createdAt: new Date().toISOString() };
     if (draft.market === "prop") { b.playerId = draft.playerId; b.playerName = draft.playerName; b.stat = draft.stat; }
     if (b.market !== "ml") {
       var lv = parseFloat($("bmLine").value);
