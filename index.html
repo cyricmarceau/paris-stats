@@ -384,6 +384,10 @@
   function f1(x) { return x.toFixed(1); }
   function pct(x) { return (x * 100).toFixed(0) + " %"; }
   function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : 0; }
+  // Lecture d'une clé venant d'un pari (id de match, de joueur, stat) : ignore les propriétés héritées
+  // comme « constructor » ou « toString ». Les dictionnaires remplis par la page sont créés sans prototype.
+  function own(o, k) { return o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined; }
+  function dict() { return Object.create(null); }
 
   // ---- Statistiques par équipe ----
   var teams = {};
@@ -812,7 +816,7 @@
   try { bets = JSON.parse(localStorage.getItem(BETS_KEY) || "[]"); if (!Array.isArray(bets)) bets = []; } catch (e) { bets = []; }
   function saveBets() { try { localStorage.setItem(BETS_KEY, JSON.stringify(bets)); } catch (e) {} }
 
-  var gameById = {}, upcomingById = {};
+  var gameById = dict(), upcomingById = dict();
   data.games.forEach(function (g) { gameById[g.id] = g; });
   (data.upcoming || []).forEach(function (g) { upcomingById[g.id] = g; });
 
@@ -852,13 +856,13 @@
   }
   // Liste du serveur + paris locaux pas encore envoyés ; garde les cotes de fermeture vues sur cet appareil.
   function adopt(serverBets) {
-    var local = {}; bets.forEach(function (b) { local[b.id] = b; });
+    var local = dict(); bets.forEach(function (b) { local[b.id] = b; });
     var out = serverBets.filter(function (b) { return pendDel.indexOf(b.id) < 0; }).map(function (b) {
       var l = local[b.id];
       if (l) { if (l.closeOdds) b.closeOdds = l.closeOdds; if (typeof l.closeLine === "number") b.closeLine = l.closeLine; }
       return b;
     });
-    var ids = {}; out.forEach(function (b) { ids[b.id] = true; });
+    var ids = dict(); out.forEach(function (b) { ids[b.id] = true; });
     pendAdd.forEach(function (id) { if (local[id] && !ids[id]) out.push(local[id]); });
     bets = out; saveBets(); updateClose();
   }
@@ -869,7 +873,7 @@
     setSync("busy");
     api("/api/bets").then(function (j) {
       if (!lsGet("paris-stats-migrated", false)) { // 1re connexion : envoie les paris déjà enregistrés sur cet appareil
-        var have = {}; (j.bets || []).forEach(function (b) { have[b.id] = true; });
+        var have = dict(); (j.bets || []).forEach(function (b) { have[b.id] = true; });
         bets.forEach(function (b) { if (!have[b.id] && pendAdd.indexOf(b.id) < 0) pendAdd.push(b.id); });
         savePend(); lsSet("paris-stats-migrated", true);
       }
@@ -882,7 +886,7 @@
         chain = chain.then(function () { return api("/api/bets", { method: "POST", body: { bets: toSend } }); })
           // Ne retire de l'attente que les paris que le serveur a vraiment gardés : un pari refusé reste sur l'appareil.
           .then(function (r) {
-            var kept = {}; (r.bets || []).forEach(function (b) { kept[b.id] = true; });
+            var kept = dict(); (r.bets || []).forEach(function (b) { kept[b.id] = true; });
             refused = toSend.some(function (b) { return !kept[b.id]; });
             pendAdd = pendAdd.filter(function (id) { return !kept[id]; }); savePend(); adopt(r.bets || []); return r;
           }, function (e) {
@@ -925,13 +929,13 @@
   function betLabel(b) {
     if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
     if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
-    if (b.market === "prop") return (b.playerName || "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (STATS[b.stat] ? STATS[b.stat].short : "");
+    if (b.market === "prop") return (b.playerName || "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(STATS, b.stat) ? STATS[b.stat].short : "");
     return (b.pick === "over" ? "Over " : "Under ") + b.line;
   }
 
   function propValue(b) {
-    if (!PL || !STATS[b.stat] || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
-    var pl = PL.players[b.playerId], row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
+    if (!PL || !own(STATS, b.stat) || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
+    var pl = own(PL.players, b.playerId), row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
     return row ? row[STATS[b.stat].i] : null; // null = n'a pas joué
   }
   function betResult(b) {
@@ -1004,7 +1008,7 @@
         list.map(function (b) {
           var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
           var detail = g ? g.awayScore + "-" + g.homeScore : "";
-          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + STATS[b.stat].short; }
+          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + own(STATS, b.stat).short; }
           var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (detail ? ' <small class="sub">' + esc(detail) + "</small>" : "")
                       : '<span class="res-pending">En attente</span>';
           return "<tr>" +
@@ -1422,10 +1426,10 @@
       var m2 = document.getElementById("betMsg"), arr;
       try { arr = JSON.parse(document.getElementById("betImportTxt").value); } catch (err) { m2.textContent = "Texte invalide."; return; }
       if (!Array.isArray(arr)) { m2.textContent = "Texte invalide."; return; }
-      var have = {}; bets.forEach(function (b) { have[b.id] = true; });
+      var have = dict(); bets.forEach(function (b) { have[b.id] = true; });
       var added = 0;
       arr.forEach(function (b) {
-        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!STATS[b.stat]))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
+        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!own(STATS, b.stat)))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
       });
       saveBets(); savePend(); renderBets(); if (added) sync();
       document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";

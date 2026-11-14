@@ -140,14 +140,14 @@ test('un identifiant d’équipe hérité ne doit pas empêcher le chargement de
   }}));
 });
 
-test('backlog 15: inherited player id must not prevent loading saved props', { todo: 'backlog 15' }, () => {
+test('backlog 15: inherited player id must not prevent loading saved props', () => {
   const players = { done: ['g1'], players: {}, injuries: {} };
   assert.doesNotThrow(() => loadPage({ data: sampleData(), players, storage: {
     'paris-stats-bets': JSON.stringify([bet({ market: 'prop', pick: 'over', line: 20.5, playerId: 'constructor', stat: 'pts' })])
   } }));
 });
 
-test('backlog 16: inherited game ids must remain pending instead of settling', { todo: 'backlog 16' }, () => {
+test('backlog 16: inherited game ids must remain pending instead of settling', () => {
   const p = loadPage({ data: sampleData() });
   for (const gameId of ['constructor', '__proto__', 'toString']) {
     for (const market of ['ml', 'spread', 'total']) {

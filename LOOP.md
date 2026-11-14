@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 4
@@ -17,10 +17,10 @@ TOUR_CLAUDE
 - Consignes du projet : `AGENTS.md` (et `CLAUDE.md` qui l'importe).
 
 ## Backlog (priorisé : bugs > sécurité > perf > qualité > UX)
-15. **[BUG – élevé] Un identifiant joueur hérité bloque encore le rendu.** `index.html:933-934` : prop sur un match terminé dans PL.done avec `playerId: 'constructor'` → pl.g.filter lève TypeError au chargement, avant la synchro. POST 200 reproduit (`server.mjs:64-71`) ; passe aussi le filtre d’import (`index.html:1428`). Deux nouveaux TODO backlog 15 (chargement local et API réelle). Valider les champs prop et protéger PL.players par une vérification de clé propre, y compris pour les paris déjà enregistrés. Distinct du backlog 14 (joueur, pas équipe). Priorité suivante.
+15. ~~**[BUG – élevé] Un identifiant joueur hérité bloque encore le rendu.**~~ Corrigé à l'itération 4 (même cause que 12 et 16, voir « Dernière modif »). `index.html:933-934` : prop sur un match terminé dans PL.done avec `playerId: 'constructor'` → pl.g.filter lève TypeError au chargement, avant la synchro. POST 200 reproduit (`server.mjs:64-71`) ; passe aussi le filtre d’import (`index.html:1428`). Deux nouveaux TODO backlog 15 (chargement local et API réelle). Valider les champs prop et protéger PL.players par une vérification de clé propre, y compris pour les paris déjà enregistrés. Distinct du backlog 14 (joueur, pas équipe). Priorité suivante.
 14. ~~**[BUG – élevé] Identifiant d’équipe hérité qui bloque la page.**~~ Confirmé corrigé à l’itération 3 : abbr ne lit que les clés propres (`index.html:575`), validation numérique des équipes (`server.mjs:65-67`). Les deux tests échouent sur eaf9940^ et passent sur HEAD ; compatibilité détaillée dans la revue 3.
-12. **[BUG – moyen] Perte locale pour un id hérité de Object.prototype.** `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
-16. **[BUG – moyen] Un match inexistant est compté comme réglé.** `index.html:938-951` lit gameById sans clé propre : `gameId: 'constructor', market: 'ml', pick: 'away'` obtient W (faux profit de 10 $ avec mise 10/cote 2). Les scores undefined produisent NaN ; par lecture, spread/total tombent sur P. L’API accepte toute chaîne gameId (`server.mjs:66`), l’import aussi (`index.html:1428`). Nouveau TODO backlog 16 : résultat attendu null, réel W au premier cas ; les variantes suivantes ne sont pas exécutées après cette assertion. Ne régler que les matchs réellement présents ; contrôler aussi l’affichage `index.html:1005`.
+12. ~~**[BUG – moyen] Perte locale pour un id hérité de Object.prototype.**~~ Corrigé à l'itération 4. `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
+16. ~~**[BUG – moyen] Un match inexistant est compté comme réglé.**~~ Corrigé à l'itération 4. `index.html:938-951` lit gameById sans clé propre : `gameId: 'constructor', market: 'ml', pick: 'away'` obtient W (faux profit de 10 $ avec mise 10/cote 2). Les scores undefined produisent NaN ; par lecture, spread/total tombent sur P. L’API accepte toute chaîne gameId (`server.mjs:66`), l’import aussi (`index.html:1428`). Nouveau TODO backlog 16 : résultat attendu null, réel W au premier cas ; les variantes suivantes ne sont pas exécutées après cette assertion. Ne régler que les matchs réellement présents ; contrôler aussi l’affichage `index.html:1005`.
 1. ~~**[BUG – moyen] Pari refusé : perte locale, succès trompeur et suppressions bloquées.**~~ Confirmé terminé à l’itération 2 : refus conservé et signalé, DELETE indépendants envoyés malgré POST 400. Les deux anciens TODO passent et échouent sur `c806e4c^`. Cas concurrent préexistant suivi séparément au backlog 13.
 10. **[BUG – moyen] Doublons dans un même POST comptés deux fois.** `server.mjs:107-109` construit `have` depuis les paris existants sans y ajouter les id acceptés du lot : `{ bets: [b, b] }` sur serveur vide écrit deux paris identiques, repris par `adopt()` et comptés deux fois dans les statistiques. Reproduit contre le vrai serveur avec GitHub simulé, test TODO `backlog 10` dans `test/server.test.mjs`. Les numéros du backlog restent stables ; l'ordre ici indique la priorité.
 11. **[BUG – moyen] Identifiants acceptés mais impossibles à supprimer.** `server.mjs:65` accepte toute chaîne de longueur ≤ 40, tandis que `server.mjs:114` exige `[\w-]{1,40}` dans l'URL brute. Un pari importé avec `id: 'import:1'` est accepté (200), puis DELETE `/api/bets/import%3A1` renvoie 404 ; il reste sur le serveur et bloque les suppressions suivantes dans `sync()`. Test TODO `backlog 11` dans `test/server.test.mjs`.
@@ -35,14 +35,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 3 — backlog 14 (identifiant d'équipe hérité qui fait planter la page). La revue 2 n'avait pas de point à corriger sur l'itération 2 (backlog 1 accepté).
-- Quoi : `abbr()` (`index.html`) vérifie `hasOwnProperty` au lieu d'un accès direct à `teams[id]` ; `validBet` (`server.mjs`) exige `homeId` et `awayId` numériques (identifiants ESPN), donc `homeId: "constructor"` est refusé (400).
-- Pourquoi : un pari avec `homeId: "constructor"` (accepté par l'API ou par l'import) levait une TypeError dans `renderBets()` et bloquait tout le chargement de la page, y compris sur les autres appareils après synchro.
-- Fichiers : `index.html` (`abbr()`), `server.mjs` (`validBet`), `test/page.test.mjs` et `test/server.test.mjs` (retrait du marqueur `todo: 'backlog 14'` sur les 2 tests de Codex). Fixture `validBet` de `test/server.test.mjs` complétée avec `homeId: '27', awayId: '8'`, comme les vrais paris envoyés par la page (sinon le serveur, désormais plus strict, refusait la fixture).
-- Tests : `npm run lint` 4/4 ; `npm test` 43 tests : 39 réussis, 0 échec, 4 TODO (backlogs 10, 11, 12, 13). Sans la correction (stash de `index.html` et `server.mjs`), les 2 tests du backlog 14 échouent.
-- Limite connue : le serveur ne revalide pas les paris déjà dans `bets.json` ; l'import de la page n'applique pas encore la même règle sur les id d'équipe (le rendu ne plante plus, mais l'envoi sera refusé).
+Itération 4 — backlog 15 (priorité suivante), avec 12 et 16 qui ont exactement la même cause. La revue 3 n'avait pas de point à corriger sur l'itération 3 (backlog 14 accepté).
+- Une seule correction, une seule cause : la page lisait des id venant d'un pari (`b.id`, `b.gameId`, `b.playerId`, `b.stat`) dans des objets ordinaires, où « constructor », « toString » ou « __proto__ » existent toujours par héritage. Corriger 15 seul aurait laissé la même erreur deux lignes plus bas (16) et dans `adopt()` (12) ; c'est pourquoi les trois sont traités ensemble.
+- Quoi (`index.html`) : deux petites fonctions `own(o, k)` (lecture d'une clé propre seulement) et `dict()` (`Object.create(null)`). `gameById`, `upcomingById` et les ensembles d'id (`local`, `ids` dans `adopt()`, `have` de la migration et de l'import, `kept` après POST) sont créés avec `dict()` ; `PL.players[b.playerId]` et `STATS[b.stat]` passent par `own()`. Quoi (`server.mjs`) : `validBet` exige pour un prop un `playerId` numérique (id ESPN) et une `stat` parmi pts, reb, ast, tpm.
+- Pourquoi : 15 = un prop avec `playerId: "constructor"` levait une TypeError et bloquait le chargement ; 16 = un `gameId` hérité réglait un match inexistant (faux gain) ; 12 = un `id: "constructor"` était effacé de l'appareil par `adopt()`.
+- Fichiers : `index.html`, `server.mjs`, retrait des marqueurs `todo` des 4 tests de Codex (`test/page.test.mjs` × 2, `test/server.test.mjs` × 1, `test/sync.test.mjs` × 1). Aucun test supprimé ni modifié autrement.
+- Tests : `npm run lint` 4/4 ; `npm test` 48 tests : 45 réussis, 0 échec, 3 TODO (backlogs 10, 11, 13). Sans la correction (stash de `index.html` et `server.mjs`), ces 4 tests échouent (41 réussis, 4 échecs).
+- Limite connue : `plLines` (lignes joueurs saisies, clés composées par la page) et `saved` (cotes saisies) restent des objets ordinaires : leurs clés sont construites par la page (« gameId:côté »), pas lues telles quelles depuis un pari.
 
 ## Review
+(revue 4 en attente de Codex ; ci-dessous, la revue 3)
 
 **À CORRIGER — revue 3 par Codex ; backlog 14 accepté, nouveaux 15/16 à traiter.**
 
@@ -75,3 +77,4 @@ Revues précédentes condensées :
 - Revue 2 (Codex) : À CORRIGER ; backlog 1 confirmé (ancien 0/2, actuel 2/2), nouveaux 14 et 13 ; 37 réussis + 6 TODO ; itération 3, TOUR_CLAUDE.
 - Itération 3 : backlog 14 corrigé (page qui plante sur un id d'équipe hérité, refusé par le serveur) ; 37 → 39 tests réussis, 6 → 4 TODO.
 - Revue 3 (Codex) : À CORRIGER ; backlog 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO ; itération 4, TOUR_CLAUDE.
+- Itération 4 : backlogs 15, 12 et 16 corrigés (même cause : id de pari lus dans des objets à prototype) ; 41 → 45 tests réussis, 7 → 3 TODO.

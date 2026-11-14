@@ -112,7 +112,7 @@ test('refus total : les DELETE indépendants doivent tout de même être envoyé
   assert.deepEqual(p.state().pendAdd, ['long1']);
 });
 
-test('un id hérité de Object.prototype ne doit pas faire perdre un pari local', { todo: 'backlog 12' }, async () => {
+test('un id hérité de Object.prototype ne doit pas faire perdre un pari local', async () => {
   const api = fakeApi();
   const bet = { ...okBet, id: 'constructor' };
   const p = loadPage({ data: sampleData(), storage: storageWith([bet]), fetch: api.fetch });

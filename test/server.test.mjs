@@ -130,7 +130,7 @@ test('inherited names in either team id are rejected', async () => {
   assert.equal(s.github().puts, 0);
 });
 
-test('backlog 15: dangerous player id is rejected for props', { todo: 'backlog 15' }, async () => {
+test('backlog 15: dangerous player id is rejected for props', async () => {
   const s = await startServer();
   const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: validBet({
     market: 'prop', pick: 'over', line: 20.5, playerId: 'constructor', stat: 'pts'
