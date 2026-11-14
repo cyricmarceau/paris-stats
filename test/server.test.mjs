@@ -138,7 +138,7 @@ test('backlog 15: dangerous player id is rejected for props', async () => {
   assert.equal(r.status, 400);
 });
 
-test('backlog 17: malformed optional probability must be rejected before storage', { todo: 'backlog 17' }, async () => {
+test('backlog 17: malformed optional probability must be rejected before storage', async () => {
   const s = await startServer();
   const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: {
     bet: validBet({ p: { toString: null } })
@@ -168,5 +168,14 @@ test('prop validation rejects missing, malformed and inherited player ids or sta
     const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: b } });
     assert.equal(r.status, 400, JSON.stringify(bad));
   }
+  assert.equal(s.github().puts, 0);
+});
+
+test('backlog 17: malformed optional player name must be rejected before storage', async () => {
+  const s = await startServer();
+  const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: {
+    bet: validBet({ market: 'prop', pick: 'over', line: 20.5, playerId: '123', stat: 'pts', playerName: { toString: null } })
+  } });
+  assert.equal(r.status, 400);
   assert.equal(s.github().puts, 0);
 });

@@ -1,7 +1,7 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CLAUDE
+TOUR_CODEX
 
 ## Itération
 5
@@ -17,7 +17,7 @@ TOUR_CLAUDE
 - Consignes du projet : `AGENTS.md` (et `CLAUDE.md` qui l'importe).
 
 ## Backlog (priorisé : bugs > sécurité > perf > qualité > UX)
-17. **[BUG – élevé] Une probabilité facultative mal typée bloque le rendu des paris.** `server.mjs:64-72,108-112` conserve `p` sans contrôle : POST d'un pari ml valide avec `p: { "toString": null }` → 200, objet enregistré. `index.html:1021,385` passe cet objet à pct(), qui lève TypeError (« Cannot convert object to primitive value »). Le chargement local s'arrête à renderBets (`index.html:1190`), et une liste reçue de l'API casse aussi son rendu ; l'import accepte p sans contrôle (`index.html:1432-1434`). Deux nouveaux tests TODO backlog 17 reproduisent API réelle et démarrage avec donnée enregistrée. Valider/normaliser les champs facultatifs utilisés par le rendu et tolérer les anciennes données mal formées. Préexistant, distinct des clés héritées corrigées à l'itération 4. Priorité suivante.
+17. ~~**[BUG – élevé] Une probabilité facultative mal typée bloque le rendu des paris.**~~ Corrigé à l'itération 5 (`p` et `playerName`). `server.mjs:64-72,108-112` conserve `p` sans contrôle : POST d'un pari ml valide avec `p: { "toString": null }` → 200, objet enregistré. `index.html:1021,385` passe cet objet à pct(), qui lève TypeError (« Cannot convert object to primitive value »). Le chargement local s'arrête à renderBets (`index.html:1190`), et une liste reçue de l'API casse aussi son rendu ; l'import accepte p sans contrôle (`index.html:1432-1434`). Deux nouveaux tests TODO backlog 17 reproduisent API réelle et démarrage avec donnée enregistrée. Valider/normaliser les champs facultatifs utilisés par le rendu et tolérer les anciennes données mal formées. Préexistant, distinct des clés héritées corrigées à l'itération 4. Priorité suivante.
 15. ~~**[BUG – élevé] Un identifiant joueur hérité bloque encore le rendu.**~~ Corrigé à l'itération 4 (même cause que 12 et 16, voir « Dernière modif »). `index.html:933-934` : prop sur un match terminé dans PL.done avec `playerId: 'constructor'` → pl.g.filter lève TypeError au chargement, avant la synchro. POST 200 reproduit (`server.mjs:64-71`) ; passe aussi le filtre d’import (`index.html:1428`). Deux nouveaux TODO backlog 15 (chargement local et API réelle). Valider les champs prop et protéger PL.players par une vérification de clé propre, y compris pour les paris déjà enregistrés. Distinct du backlog 14 (joueur, pas équipe). Priorité suivante.
 14. ~~**[BUG – élevé] Identifiant d’équipe hérité qui bloque la page.**~~ Confirmé corrigé à l’itération 3 : abbr ne lit que les clés propres (`index.html:575`), validation numérique des équipes (`server.mjs:65-67`). Les deux tests échouent sur eaf9940^ et passent sur HEAD ; compatibilité détaillée dans la revue 3.
 12. ~~**[BUG – moyen] Perte locale pour un id hérité de Object.prototype.**~~ Corrigé à l'itération 4. `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
@@ -36,15 +36,16 @@ TOUR_CLAUDE
 9. **[UX – faible] Le nom du parieur n'est pas limité à 40 caractères à la saisie** (`#bmWho`) ni à l'import, alors que le serveur refuse au-delà : depuis l'itération 1 le pari n'est plus perdu, mais il reste en attente et refusé à chaque synchro.
 
 ## Dernière modif
-Itération 4 — backlog 15 (priorité suivante), avec 12 et 16 qui ont exactement la même cause. La revue 3 n'avait pas de point à corriger sur l'itération 3 (backlog 14 accepté).
-- Une seule correction, une seule cause : la page lisait des id venant d'un pari (`b.id`, `b.gameId`, `b.playerId`, `b.stat`) dans des objets ordinaires, où « constructor », « toString » ou « __proto__ » existent toujours par héritage. Corriger 15 seul aurait laissé la même erreur deux lignes plus bas (16) et dans `adopt()` (12) ; c'est pourquoi les trois sont traités ensemble.
-- Quoi (`index.html`) : deux petites fonctions `own(o, k)` (lecture d'une clé propre seulement) et `dict()` (`Object.create(null)`). `gameById`, `upcomingById` et les ensembles d'id (`local`, `ids` dans `adopt()`, `have` de la migration et de l'import, `kept` après POST) sont créés avec `dict()` ; `PL.players[b.playerId]` et `STATS[b.stat]` passent par `own()`. Quoi (`server.mjs`) : `validBet` exige pour un prop un `playerId` numérique (id ESPN) et une `stat` parmi pts, reb, ast, tpm.
-- Pourquoi : 15 = un prop avec `playerId: "constructor"` levait une TypeError et bloquait le chargement ; 16 = un `gameId` hérité réglait un match inexistant (faux gain) ; 12 = un `id: "constructor"` était effacé de l'appareil par `adopt()`.
-- Fichiers : `index.html`, `server.mjs`, retrait des marqueurs `todo` des 4 tests de Codex (`test/page.test.mjs` × 2, `test/server.test.mjs` × 1, `test/sync.test.mjs` × 1). Aucun test supprimé ni modifié autrement.
-- Tests : `npm run lint` 4/4 ; `npm test` 48 tests : 45 réussis, 0 échec, 3 TODO (backlogs 10, 11, 13). Sans la correction (stash de `index.html` et `server.mjs`), ces 4 tests échouent (41 réussis, 4 échecs).
-- Limite connue : `plLines` (lignes joueurs saisies, clés composées par la page) et `saved` (cotes saisies) restent des objets ordinaires : leurs clés sont construites par la page (« gameId:côté »), pas lues telles quelles depuis un pari.
+Itération 5 — backlog 17 (champ facultatif mal typé qui bloque le rendu). La revue 4 n'avait pas de point à corriger sur l'itération 4 (15/12/16 acceptés, regroupement accepté).
+- Quoi : `validBet` (`server.mjs`) accepte `p` seulement absent/null ou nombre entre 0 et 1, et `playerName` seulement absent/null ou chaîne de 80 caractères max. Côté page (`index.html`), la colonne « Modèle » n'affiche `p` que si c'est un nombre fini, et `betLabel()` n'utilise `playerName` que si c'est une chaîne ; les anciennes données mal formées s'affichent donc sans planter.
+- Pourquoi : `p: { "toString": null }` était accepté par l'API et faisait planter `pct()` au rendu ; `playerName` (le seul autre champ facultatif affiché) avait exactement le même défaut via `esc()`, donc il est traité dans la même correction.
+- Fichiers : `server.mjs`, `index.html`, retrait des marqueurs `todo: 'backlog 17'` des 2 tests de Codex, et 2 tests ajoutés pour `playerName` (`test/page.test.mjs`, `test/server.test.mjs`).
+- Tests : `npm run lint` 4/4 ; `npm test` 54 tests : 51 réussis, 0 échec, 3 TODO (backlogs 10, 11, 13). Sans la correction (stash de `index.html` et `server.mjs`), les 4 tests du backlog 17 échouent (47 réussis, 4 échecs).
+- Limite connue : l'import de la page ne filtre toujours pas `p` ni `playerName` ; ces paris s'affichent sans planter mais seront refusés par le serveur (et restent en attente, cf. backlog 1/9).
 
 ## Review
+(revue 5 en attente de Codex ; ci-dessous, la revue 4)
+
 **À CORRIGER — revue 4 par Codex ; correctif 15/12/16 accepté, nouveau 17 à traiter.**
 
 - AGENTS.md, LOOP.md et `git show HEAD` (2e5d32d) lus. Skills disponibles examinés : aucun spécialisé pertinent pour cette revue HTML/Node ; aucun SKILL.md de projet trouvé. Branche `auto-improve/2026-11-13` conservée ; seules modifications dans test/ et LOOP.md, aucun push, aucune source remplacée.
@@ -81,3 +82,4 @@ Revues précédentes condensées :
 - Revue 3 (Codex) : À CORRIGER ; backlog 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO ; itération 4, TOUR_CLAUDE.
 - Itération 4 : backlogs 15, 12 et 16 corrigés (même cause : id de pari lus dans des objets à prototype) ; 41 → 45 tests réussis, 7 → 3 TODO.
 - Revue 4 (Codex) : À CORRIGER ; regroupement accepté, 15/12/16 confirmés (parent 0/4, HEAD 4/4), nouveau 17 ; 47 réussis + 5 TODO ; itération 5, TOUR_CLAUDE.
+- Itération 5 : backlog 17 corrigé (p et playerName mal typés refusés par le serveur, affichage tolérant) ; 47 → 51 tests réussis, 5 → 3 TODO.

@@ -929,7 +929,7 @@
   function betLabel(b) {
     if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
     if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
-    if (b.market === "prop") return (b.playerName || "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(STATS, b.stat) ? STATS[b.stat].short : "");
+    if (b.market === "prop") return (typeof b.playerName === "string" && b.playerName ? b.playerName : "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(STATS, b.stat) ? STATS[b.stat].short : "");
     return (b.pick === "over" ? "Over " : "Under ") + b.line;
   }
 
@@ -1018,7 +1018,7 @@
             "<td>" + esc(b.who || "") + "</td>" +
             '<td class="num">' + b.odds.toFixed(2) + "</td>" +
             '<td class="num">' + b.stake.toFixed(2) + " $</td>" +
-            '<td class="num">' + (b.p ? pct(b.p) : "") + "</td>" +
+            '<td class="num">' + (typeof b.p === "number" && isFinite(b.p) && b.p > 0 ? pct(b.p) : "") + "</td>" +
             "<td>" + res + "</td>" +
             '<td class="num ' + (pr > 0 ? "pos" : pr < 0 ? "neg" : "") + '">' + (pr === null ? "" : (pr > 0 ? "+" : "") + pr.toFixed(2) + " $") + "</td>" +
             '<td class="num ' + (c ? (c.v > 0 ? "pos" : c.v < 0 ? "neg" : "") : "") + '">' + (c ? esc(c.txt) : "") + "</td>" +

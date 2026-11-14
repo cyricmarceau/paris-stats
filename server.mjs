@@ -65,6 +65,9 @@ function validBet(b) {
   const teamId = v => typeof v === 'string' && /^\d{1,10}$/.test(v); // identifiants ESPN numériques
   return b && typeof b.id === 'string' && b.id.length <= 40 && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
     teamId(b.homeId) && teamId(b.awayId) &&
+    // Champs facultatifs affichés par la page : bon type ou absents.
+    (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&
+    (b.playerName == null || (typeof b.playerName === 'string' && b.playerName.length <= 80)) &&
     (b.market !== 'prop' || (typeof b.playerId === 'string' && /^\d{1,12}$/.test(b.playerId) && ['pts', 'reb', 'ast', 'tpm'].includes(b.stat))) &&
     Number.isFinite(b.odds) && b.odds > 1 && b.odds < 1000 && Number.isFinite(b.stake) && b.stake > 0 && b.stake < 1e6 &&
     typeof b.who === 'string' && b.who.length <= 40 && Number.isFinite(Date.parse(b.date)) &&
