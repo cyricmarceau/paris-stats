@@ -335,7 +335,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 20</span></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 21</span></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -568,7 +568,6 @@
       '<div class="line">' +
         "<span>Victoire <b class=\"num\">" + pct(p) + "</b>" +
           (pBook != null ? ' <small class="num">(modèle ' + pct(pModel) + " · book " + pct(pBook) + ")</small>" : "") + "</span>" +
-        "<span>Notre cote <b class=\"num\">" + (1 / p).toFixed(2) + "</b></span>" +
         '<label>Cote du book <input class="odds num" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="1.90" ' +
           'data-id="' + esc(id) + '" data-p="' + p + '" data-book="' + (bookDec || "") + '" data-prov="' + esc(provider) +
           '" value="' + esc(val) + '"></label>' +
