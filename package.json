@@ -1,0 +1,9 @@
+{
+  "name": "paris-stats",
+  "private": true,
+  "description": "Stats NBA et comparaison de cotes. Aucune dépendance : les tests utilisent node:test.",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "lint": "node --test test/syntax.test.mjs"
+  }
+}
