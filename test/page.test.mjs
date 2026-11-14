@@ -156,3 +156,10 @@ test('backlog 16: inherited game ids must remain pending instead of settling', (
     }
   }
 });
+
+// Une donnée facultative reçue de l'API/import ne doit pas bloquer tout le rendu.
+test('backlog 17: malformed optional probability must not prevent page loading', { todo: 'backlog 17' }, () => {
+  assert.doesNotThrow(() => loadPage({ data: sampleData(), storage: {
+    'paris-stats-bets': JSON.stringify([bet({ market: 'ml', pick: 'home', p: { toString: null } })])
+  } }));
+});

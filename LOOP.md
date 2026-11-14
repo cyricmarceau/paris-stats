@@ -1,10 +1,10 @@
 # LOOP.md — amélioration continue (Claude = DEV, Codex = REVIEW)
 
 ## État
-TOUR_CODEX
+TOUR_CLAUDE
 
 ## Itération
-4
+5
 
 ## Projet (analyse de la préparation)
 - Site statique : `index.html` (CSS + un script en ligne, ~1450 lignes), données générées `data.js`, `players.js`, `h2h.js`, `h2hbox.js`.
@@ -17,6 +17,7 @@ TOUR_CODEX
 - Consignes du projet : `AGENTS.md` (et `CLAUDE.md` qui l'importe).
 
 ## Backlog (priorisé : bugs > sécurité > perf > qualité > UX)
+17. **[BUG – élevé] Une probabilité facultative mal typée bloque le rendu des paris.** `server.mjs:64-72,108-112` conserve `p` sans contrôle : POST d'un pari ml valide avec `p: { "toString": null }` → 200, objet enregistré. `index.html:1021,385` passe cet objet à pct(), qui lève TypeError (« Cannot convert object to primitive value »). Le chargement local s'arrête à renderBets (`index.html:1190`), et une liste reçue de l'API casse aussi son rendu ; l'import accepte p sans contrôle (`index.html:1432-1434`). Deux nouveaux tests TODO backlog 17 reproduisent API réelle et démarrage avec donnée enregistrée. Valider/normaliser les champs facultatifs utilisés par le rendu et tolérer les anciennes données mal formées. Préexistant, distinct des clés héritées corrigées à l'itération 4. Priorité suivante.
 15. ~~**[BUG – élevé] Un identifiant joueur hérité bloque encore le rendu.**~~ Corrigé à l'itération 4 (même cause que 12 et 16, voir « Dernière modif »). `index.html:933-934` : prop sur un match terminé dans PL.done avec `playerId: 'constructor'` → pl.g.filter lève TypeError au chargement, avant la synchro. POST 200 reproduit (`server.mjs:64-71`) ; passe aussi le filtre d’import (`index.html:1428`). Deux nouveaux TODO backlog 15 (chargement local et API réelle). Valider les champs prop et protéger PL.players par une vérification de clé propre, y compris pour les paris déjà enregistrés. Distinct du backlog 14 (joueur, pas équipe). Priorité suivante.
 14. ~~**[BUG – élevé] Identifiant d’équipe hérité qui bloque la page.**~~ Confirmé corrigé à l’itération 3 : abbr ne lit que les clés propres (`index.html:575`), validation numérique des équipes (`server.mjs:65-67`). Les deux tests échouent sur eaf9940^ et passent sur HEAD ; compatibilité détaillée dans la revue 3.
 12. ~~**[BUG – moyen] Perte locale pour un id hérité de Object.prototype.**~~ Corrigé à l'itération 4. `index.html:860-861` utilise `{}` comme ensemble : avec `id: 'constructor'` (autorisé au POST et à l'import), `ids[id]` est déjà vrai même si la liste serveur est vide. `adopt()` efface le pari local avant l'envoi, puis POST reçoit un lot vide (400) et l'id reste en attente. Le même motif existe dans la migration (`index.html:871-872`) et la nouvelle table `kept` (`index.html:884-885`). Reproduit avec le harness, test TODO `backlog 12`. Traiter les id comme clés propres (Set ou objet sans prototype) ; motif préexistant hors diff, pas une pollution globale du prototype démontrée.
@@ -44,24 +45,25 @@ Itération 4 — backlog 15 (priorité suivante), avec 12 et 16 qui ont exacteme
 - Limite connue : `plLines` (lignes joueurs saisies, clés composées par la page) et `saved` (cotes saisies) restent des objets ordinaires : leurs clés sont construites par la page (« gameId:côté »), pas lues telles quelles depuis un pari.
 
 ## Review
-(revue 4 en attente de Codex ; ci-dessous, la revue 3)
+**À CORRIGER — revue 4 par Codex ; correctif 15/12/16 accepté, nouveau 17 à traiter.**
 
-**À CORRIGER — revue 3 par Codex ; backlog 14 accepté, nouveaux 15/16 à traiter.**
-
-- AGENTS.md, LOOP.md et git show HEAD (`eaf9940`) lus. Skills disponibles examinés : aucun skill spécialisé pertinent pour cette revue Node/HTML ; aucun SKILL.md de projet trouvé par rg. Branche conservée, seuls LOOP.md et test/ modifiés ; aucun push.
-- Preuve indépendante : copies temporaires sous test/ du parent eaf9940^ (index.html et server.mjs), tests actuels, harness et faux GitHub. `node --test --test-name-pattern="chargement des paris|dangereux" …` : parent 0/2, exit 1 (TypeError abbr ; POST 200 au lieu de 400), HEAD 2/2, exit 0. Copies supprimées ; aucun remplacement de source du dépôt. Une première sélection avec accent ne sélectionnait aucun test ; seules ces dernières exécutions constituent la preuve.
-- Correctif `index.html:575` robuste pour les équipes héritées déjà présentes localement, importées ou reçues du serveur. Validation `server.mjs:65-67` : nouveau test vert sur homeId ET awayId avec constructor, __proto__, toString et hasOwnProperty (aucune écriture GitHub).
-- Fixture légitime : homeId/awayId correspondent au formulaire (`index.html:1214,1342`). Aucun test supprimé ni assertion affaiblie ; les tests négatifs isolent encore leur champ invalide au lieu d’échouer accidentellement sur la fixture. Nouveau test API vert : ml, spread, total, prop avec équipes numériques → 200 et présence dans la réponse.
-- Historique : `git log --reverse -S 'homeId:' -- index.html` et `git show 527e57e:index.html` contrôlés. Dès le premier suivi des paris (527e57e, 11 nov. 2026), draft inclut les équipes et Object.assign les copie dans le pari ; 15e4eab les conserve explicitement. Pas de version du formulaire de paris sans homeId trouvée. ESPN converti en chaînes (`fetch-data.mjs:81-83`). Pas de régression démontrée pour les paris normalement créés, y compris déjà en attente sur téléphone.
-- Import : `index.html:1428` accepte encore des objets sans homeId/awayId, des nombres ou des chaînes non numériques ; le POST les refuse désormais. Ils restent locaux/en attente avec message générique (`index.html:906`), sans perte grâce au backlog 1. Les exports des formulaires historiques contiennent ces champs ; les imports externes n’ont pas cette garantie. Limite confirmée par lecture des filtres, pas par test d’import navigateur : envisager validation/enrichissement cohérent à l’import. GET/DELETE ne revalident pas les anciens paris du serveur.
-- Autres lookups : abbr protège les équipes des paris ; les autres teams[…] viennent des données NBA ou des sélections, pas directement de ces champs. upcomingById[b.gameId] (`index.html:823-824`) sort si odds absent sur une propriété héritée : pas de crash trouvé là. gameById règle un match inexistant (nouveau 16). PL.players[b.playerId] bloque le rendu (nouveau 15, deux TODO reproduits). STATS[b.stat] (`index.html:928,933,1428`) reste sans clé propre : une chaîne héritée passe l’import et peut donner un libellé undefined ; aucune exception prouvée pour une simple chaîne stat héritée. Validation prop serveur insuffisante, à examiner avec 15. Pas d’audit exhaustif ni de navigateur/production consulté.
-- Checks : `npm run lint` 4/4 ; `npm test` initial 43 = 39 réussis + 4 TODO ; final 48 = 41 réussis + 7 TODO en échec attendu, 0 échec bloquant, exit 0. Cinq tests ajoutés, aucun supprimé ; trois nouveaux TODO (15 × 2, 16 × 1). Aucun build ni typecheck.
-- Aucun arrêt : trois itérations, backlog non vide, amélioration mesurable (deux tests 14 désormais verts). Itération 4, TOUR_CLAUDE. Priorité 15 puis défauts moyens dans l’ordre du backlog.
+- AGENTS.md, LOOP.md et `git show HEAD` (2e5d32d) lus. Skills disponibles examinés : aucun spécialisé pertinent pour cette revue HTML/Node ; aucun SKILL.md de projet trouvé. Branche `auto-improve/2026-11-13` conservée ; seules modifications dans test/ et LOOP.md, aucun push, aucune source remplacée.
+- **Regroupement accepté au titre d'une correction par itération** : 15, 12 et 16 sont trois manifestations du même défaut (clé provenant d'un pari lue sans distinguer propriétés propres et héritées). Les petits dictionnaires et own() forment un correctif cohérent ; la validation prop complète la protection à l'entrée. Aucune refonte indépendante mêlée au changement.
+- **Preuve indépendante** : copies temporaires sous test/review-parent/ de index.html et server.mjs issus de `git show 2e5d32d^:<fichier>`, avec tests/harness actuels. `node --test --test-name-pattern="backlog 15|backlog 16|Object.prototype" test/page.test.mjs test/server.test.mjs test/sync.test.mjs` : parent **0/4, exit 1** (TypeError filter, faux W, POST 200, pari local perdu), HEAD **4/4, exit 0**. Répertoire temporaire supprimé, aucun test retiré ou affaibli.
+- **15 confirmé** : own(PL.players, b.playerId) (`index.html:936-939`) protège les anciens paris ; `server.mjs:68` refuse les nouveaux ids/stat invalides. Les lectures restantes STATS[b.stat] (`index.html:932,939`) sont précédées de own() ; `index.html:1011` n'est atteint que si propValue a produit un résultat. Aucun autre accès non protégé à un objet ordinaire par clé directement contrôlée par le pari trouvé dans ces chemins ; le dictionnaire W/L/P est indexé par betResult(), pas par une valeur importée brute.
+- **12/16 confirmés et compatibilité des dictionnaires** : tous les usages de gameById, upcomingById, local, ids, have et kept relus (`index.html:819-890,942,1009,1049,1114,1214,1429-1432`). Indexation et affectation uniquement, aucune méthode hasOwnProperty/toString appelée sur eux, aucun besoin du prototype. Object.keys/JSON sont compatibles avec un objet sans prototype ; ici les sauvegardes JSON portent sur bets/plLines, pas sur ces tables. Aucun appel dépendant de méthodes héritées ni régression identifiée. Les usages annexes de upcomingById (joueurs, purge des lignes, ouverture formulaire) restent compatibles par lecture ; pas de navigateur exécuté.
+- **Props légitimes** : contrôle ponctuel via Node des 465 clés réelles de players.js local : toutes sont des chaînes de 1 à 12 chiffres. Nouveau test POST avec un id réel (1966) pour chacune des quatre stats (200, objets conservés), fixture fixe pour ne pas dépendre d'un fichier généré non versionné. Un autre test vert vérifie les champs absents/mal typés et stats héritées/inconnues (400, zéro écriture). La page parcourt Object.keys(PL.players) (`index.html:1074`), transmet pid via data-pid (`index.html:1132,1221-1223`) puis le recopie dans le pari (`index.html:1348`).
+- **Historique/exports** : premier formulaire prop dans ba5faab : mêmes quatre stats, pid issu d'Object.keys et getAttribute, draft.playerId recopié par Object.assign ; fetch-extras y utilise déjà String(a.athlete.id). L'export actuel (`index.html:1418-1419`) et celui de ba5faab font JSON.stringify(bets), sans transformer playerId. Aucun rejet de prop créé normalement démontré. Aucun fichier d'export utilisateur versionné trouvé ; exports personnels et API de production **non consultés**, donc pas de garantie pour un import externe à identifiant arbitraire. L'import reste plus permissif que POST sur playerId ; ancien prop invalide toléré au rendu, puis refusé à l'envoi (sans perte locale grâce au backlog 1). players.js n'est pas présent dans le commit historique ba5faab ; sa génération et le formulaire historiques ont été examinés, les clés réelles sont celles du fichier local actuel.
+- **Nouveau 17, élevé** : POST réel avec p objet → 200 au lieu de refus ; le même pari JSON enregistré provoque TypeError dans pct (`index.html:385,1021`). Deux tests TODO ajoutés. Cause préexistante : champs facultatifs non validés, pas une régression du dictionnaire. Pas d'autre nouveau problème suffisamment établi retenu.
+- **Checks** : `npm run lint` **4/4**, exit 0. `npm test` initial **48 = 45 réussis + 3 TODO** ; final **52 = 47 réussis + 5 TODO**, exit 0, zéro échec bloquant. Les cinq TODO échouent comme attendu (10, 11, 13, 17 × 2). Quatre tests ajoutés, aucun supprimé ; aucun build ni typecheck.
+- Aucun arrêt : quatre itérations, backlog non vide, amélioration mesurable (quatre anciens TODO verts). **Itération 5, TOUR_CLAUDE** ; priorité 17 puis défauts moyens dans l'ordre du backlog.
 
 Revues précédentes condensées :
 
-- Revue 1 : À CORRIGER ; succès trompeur/refus partiel du backlog 1, nouveaux 10/11/12 ; 32 réussis + 5 TODO.
-- Revue 2 : À CORRIGER ; backlog 1 confirmé (ancien 0/2, actuel 2/2), nouveaux 14/13 ; 37 réussis + 6 TODO. Refus conservés et DELETE indépendants vérifiés ; concurrence restante suivie en 13.
+- Revue 1 : À CORRIGER ; refus partiel du backlog 1, nouveaux 10/11/12 ; 32 réussis + 5 TODO.
+- Revue 2 : À CORRIGER ; 1 confirmé (parent 0/2, actuel 2/2), nouveaux 14/13 ; 37 réussis + 6 TODO.
+- Revue 3 : À CORRIGER ; 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO. Identifiants d'équipe historiques et quatre marchés légitimes vérifiés ; imports externes moins contraints que l'API.
+
 
 ## À valider par Cyric
 - ~~`GET /api/bets` public~~ : Cyric a répondu de le garder ainsi (13 nov.).
@@ -78,3 +80,4 @@ Revues précédentes condensées :
 - Itération 3 : backlog 14 corrigé (page qui plante sur un id d'équipe hérité, refusé par le serveur) ; 37 → 39 tests réussis, 6 → 4 TODO.
 - Revue 3 (Codex) : À CORRIGER ; backlog 14 confirmé (parent 0/2, HEAD 2/2), nouveaux 15/16 ; 41 réussis + 7 TODO ; itération 4, TOUR_CLAUDE.
 - Itération 4 : backlogs 15, 12 et 16 corrigés (même cause : id de pari lus dans des objets à prototype) ; 41 → 45 tests réussis, 7 → 3 TODO.
+- Revue 4 (Codex) : À CORRIGER ; regroupement accepté, 15/12/16 confirmés (parent 0/4, HEAD 4/4), nouveau 17 ; 47 réussis + 5 TODO ; itération 5, TOUR_CLAUDE.

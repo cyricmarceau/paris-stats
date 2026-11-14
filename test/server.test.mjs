@@ -137,3 +137,36 @@ test('backlog 15: dangerous player id is rejected for props', async () => {
   }) } });
   assert.equal(r.status, 400);
 });
+
+test('backlog 17: malformed optional probability must be rejected before storage', { todo: 'backlog 17' }, async () => {
+  const s = await startServer();
+  const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: {
+    bet: validBet({ p: { toString: null } })
+  } });
+  assert.equal(r.status, 400);
+  assert.equal(s.github().puts, 0);
+});
+
+test('a real ESPN athlete id remains accepted for every page stat', async () => {
+  // Clé réelle contrôlée dans players.js local ; fixture fixe pour les clones sans données générées.
+  const s = await startServer();
+  for (const stat of ['pts', 'reb', 'ast', 'tpm']) {
+    const b = validBet({ id: stat, market: 'prop', pick: 'over', line: 20.5, playerId: '1966', stat });
+    const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: b } });
+    assert.equal(r.status, 200, stat);
+    assert.deepEqual(r.json.bets.find(x => x.id === stat), b);
+  }
+});
+
+test('prop validation rejects missing, malformed and inherited player ids or stats', async () => {
+  const s = await startServer();
+  for (const bad of [
+    { playerId: undefined }, { playerId: 1966 }, { playerId: 'p9' }, { playerId: '__proto__' },
+    { playerId: '1234567890123' }, { stat: undefined }, { stat: 'constructor' }, { stat: '__proto__' }, { stat: 'unknown' }
+  ]) {
+    const b = validBet({ market: 'prop', pick: 'over', line: 20.5, playerId: '1966', stat: 'pts', ...bad });
+    const r = await s.call('/api/bets', { method: 'POST', code: 'secret', body: { bet: b } });
+    assert.equal(r.status, 400, JSON.stringify(bad));
+  }
+  assert.equal(s.github().puts, 0);
+});
