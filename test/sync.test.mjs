@@ -121,3 +121,82 @@ test('un id hérité de Object.prototype ne doit pas faire perdre un pari local'
   assert.equal(api.server.length, 1);
   assert.deepEqual(p.state().pendAdd, []);
 });
+
+// Cas limites de la revue 2 : réponses différées et HTML présenté à l’utilisateur.
+test('refus puis DELETE en panne : files conservées, rendu en erreur et réessai possible', async () => {
+  const api = fakeApi(); api.server.push(okBet);
+  let failDelete = true;
+  const storage = storageWith([longName]);
+  storage['paris-stats-pend-del'] = JSON.stringify([okBet.id]);
+  const p = loadPage({ data: sampleData(), storage, fetch(url, opts) {
+    if (opts.method === 'DELETE' && failDelete) return Promise.resolve({ok:false, status:500, json:async()=>({error:'panne'})});
+    return api.fetch(url, opts);
+  }});
+  await flush();
+  assert.deepEqual(p.state().pendDel, [okBet.id]);
+  assert.deepEqual(p.state().pendAdd, [longName.id]);
+  assert.equal(p.state().sync.msg, 'Serveur injoignable.');
+  assert.match(p.document.getElementById('view-paris').innerHTML, /Serveur injoignable/);
+  failDelete = false;
+  p.sync(); await flush();
+  assert.deepEqual(p.state().pendDel, []);
+  assert.match(p.state().sync.msg, /refus/i);
+  const html = p.document.getElementById('view-paris').innerHTML;
+  assert.match(html, /refusé un pari/);
+  assert.match(html, /1 changement\(s\) à envoyer/);
+  assert.match(html, /Réessayer/);
+  assert.doesNotMatch(html, /Paris enregistrés sur le serveur/);
+  const count = api.calls.length;
+  p.sync(); await flush();
+  assert.ok(api.calls.length > count, 'syncing doit être réinitialisé après le refus final');
+});
+
+test('un 400 GET ne lance aucune mutation ; le réessai réinitialise syncing', async () => {
+  const api = fakeApi(); let bad = true;
+  const p = loadPage({data:sampleData(), storage:storageWith([okBet]), fetch(url, opts) {
+    if (bad) return Promise.resolve({ok:false,status:400,json:async()=>({error:'Requête incorrecte'})});
+    return api.fetch(url, opts);
+  }});
+  await flush();
+  assert.deepEqual(api.calls, []);
+  assert.deepEqual(p.state().pendAdd, [okBet.id]);
+  // Limite connue de la traduction par statut : même un 400 GET est appelé « pari refusé ».
+  assert.match(p.document.getElementById('syncBox').innerHTML, /refusé un pari/);
+  bad = false; p.sync(); await flush();
+  assert.deepEqual(p.state().pendAdd, []);
+  assert.equal(p.state().sync.state, 'ok');
+  assert.match(p.document.getElementById('view-paris').innerHTML, /Paris enregistrés/);
+});
+
+test('ajout pendant POST : le nouveau pari doit partir avant d’annoncer le succès', {todo:'backlog 13'}, async () => {
+  const api = fakeApi(); let release;
+  const p = loadPage({data:sampleData(),storage:storageWith([okBet]),fetch(url,opts) {
+    if (opts.method === 'POST' && !release) return new Promise(resolve => { release=()=>resolve(api.fetch(url,opts)); });
+    return api.fetch(url,opts);
+  }});
+  await flush(); assert.equal(typeof release, 'function');
+  // Même mutation que le formulaire (index.html:1349), pendant que le POST attend.
+  const added = {...okBet,id:'added-during-post'};
+  p.state().bets.push(added); p.state().pendAdd.push(added.id);
+  p.localStorage.setItem('paris-stats-bets', JSON.stringify(p.state().bets));
+  p.localStorage.setItem('paris-stats-pend-add', JSON.stringify(p.state().pendAdd));
+  p.sync(); release(); await flush();
+  assert.ok(p.state().bets.some(b=>b.id===added.id), 'le nouveau pari doit rester local');
+  assert.ok(api.server.some(b=>b.id===added.id) || p.state().sync.state !== 'ok', 'succès annoncé malgré un pari jamais envoyé');
+});
+
+test('400 POST sans rapport avec les paris : DELETE envoyé, motif générique par statut', async () => {
+  const api = fakeApi(); api.server.push({...okBet,id:'delete-me'});
+  const storage = storageWith([okBet]);
+  storage['paris-stats-pend-del'] = JSON.stringify(['delete-me']);
+  const p = loadPage({data:sampleData(),storage,fetch(url,opts) {
+    if (opts.method === 'POST') return Promise.resolve({ok:false,status:400,json:async()=>({error:'En-tête invalide'})});
+    return api.fetch(url,opts);
+  }});
+  await flush();
+  assert.ok(api.calls.some(c=>c.method==='DELETE'));
+  assert.deepEqual(p.state().pendDel, []);
+  assert.deepEqual(p.state().pendAdd, [okBet.id]);
+  assert.match(p.state().sync.msg, /refusé un pari/);
+  assert.doesNotMatch(p.document.getElementById('syncBox').innerHTML, /En-tête invalide/);
+});

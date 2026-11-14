@@ -51,6 +51,7 @@ export function loadPage({ data, players = null, storage = {}, fetch } = {}) {
   vm.runInContext(pageScript, sandbox, { filename: 'index.html' });
   if (!api) throw new Error('index.html n’a pas appelé window.__PS_TEST__');
   api.localStorage = sandbox.localStorage;
+  api.document = document; // Inspection du HTML rendu (syncBox, view-paris).
   return api;
 }
 

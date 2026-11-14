@@ -101,3 +101,9 @@ test('tout id accepté par POST doit pouvoir être supprimé par DELETE', { todo
   assert.equal(del.status, 200);
   assert.deepEqual(del.json.bets, []);
 });
+
+test('un pari avec un identifiant d’équipe dangereux doit être refusé', {todo:'backlog 14'}, async () => {
+  const s = await startServer();
+  const r = await s.call('/api/bets', {method:'POST',code:'secret',body:{bet:validBet({homeId:'constructor',awayId:'1'})}});
+  assert.equal(r.status, 400);
+});
