@@ -318,7 +318,27 @@
     var homePts = rating(h, "pf") * rating(a, "pa") / leagueAvg + HOME_EDGE / 2;
     var awayPts = rating(a, "pf") * rating(h, "pa") / leagueAvg - HOME_EDGE / 2;
     var pHome = normCdf((homePts - awayPts) / MARGIN_SD);
-    return { homePts: homePts, awayPts: awayPts, pHome: pHome, pAway: 1 - pHome };
+    return { homePts: homePts, awayPts: awayPts, pHome: pHome, pAway: 1 - pHome,
+      margin: homePts - awayPts, total: homePts + awayPts };
+  }
+
+  // Le modèle seul écrase les écarts (moyennes ramenées vers la ligue) et surestime donc les outsiders :
+  // sur les 23 premiers matchs avec cotes, 9 outsiders sortaient « à +10 % » contre 2 favoris.
+  // On mélange donc sa probabilité, son écart et son total avec ceux du book (sans la marge du book).
+  var MARKET_W = 0.7;
+  function withMarket(pr, o) {
+    var r = { homePts: pr.homePts, awayPts: pr.awayPts, pHome: pr.pHome, pAway: pr.pAway,
+      margin: pr.margin, total: pr.total, pModelHome: pr.pHome, pBookHome: null };
+    var dh = americanToDecimal(o.homeMoneyline), da = americanToDecimal(o.awayMoneyline);
+    if (dh && da) {
+      var q = (1 / dh) / (1 / dh + 1 / da);
+      r.pBookHome = q;
+      r.pHome = (1 - MARKET_W) * pr.pHome + MARKET_W * q;
+      r.pAway = 1 - r.pHome;
+    }
+    if (typeof o.spread === "number") r.margin = (1 - MARKET_W) * pr.margin + MARKET_W * -o.spread;
+    if (typeof o.total === "number") r.total = (1 - MARKET_W) * pr.total + MARKET_W * o.total;
+    return r;
   }
 
   function americanToDecimal(a) {
@@ -379,7 +399,7 @@
   // Écart et total : probabilité du meilleur côté contre une cote standard de -110.
   function marketsHtml(g, h, a, pr, o) {
     var out = [];
-    var margin = pr.homePts - pr.awayPts, total = pr.homePts + pr.awayPts;
+    var margin = pr.margin, total = pr.total;
     if (typeof o.spread === "number") {
       var pHome = normCdf((margin + o.spread) / MARGIN_SD);
       var side = pHome >= 0.5 ? esc(h.info.abbr) + " " + sgn(o.spread) : esc(a.info.abbr) + " " + sgn(-o.spread);
@@ -397,7 +417,7 @@
     return out.length ? out.join("") + '<span class="mkt">(écart et total calculés à une cote de -110)</span>' : "";
   }
 
-  function sideHtml(g, key, t, pts, p, bookDec, isHome) {
+  function sideHtml(g, key, t, pts, p, bookDec, isHome, pModel, pBook) {
     var id = g.id + ":" + key;
     var provider = (g.odds && g.odds.provider) || "le book";
     var val = saved[id] ? saved[id].v : (bookDec ? bookDec.toFixed(2) : "");
@@ -408,7 +428,8 @@
       '<div class="name">' + logo + esc(t.info.name) + " <small>" + (isHome ? "dom." : "étr.") + " · " + t.all.w + "-" + t.all.l + "</small></div>" +
       '<div class="proj num">' + f1(pts) + "</div>" +
       '<div class="line">' +
-        "<span>Victoire <b class=\"num\">" + pct(p) + "</b></span>" +
+        "<span>Victoire <b class=\"num\">" + pct(p) + "</b>" +
+          (pBook != null ? ' <small class="num">(modèle ' + pct(pModel) + " · book " + pct(pBook) + ")</small>" : "") + "</span>" +
         "<span>Notre cote <b class=\"num\">" + (1 / p).toFixed(2) + "</b></span>" +
         '<label>Cote du book <input class="odds num" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="1.90" ' +
           'data-id="' + esc(id) + '" data-p="' + p + '" data-book="' + (bookDec || "") + '" data-prov="' + esc(provider) +
@@ -477,8 +498,8 @@
     var fmt = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
     return '<div class="games">' + list.map(function (g) {
       var h = teams[g.homeId], a = teams[g.awayId];
-      var pr = project(h, a);
       var o = g.odds || {};
+      var pr = withMarket(project(h, a), o);
       var margin = pr.homePts - pr.awayPts;
       var fav = margin >= 0 ? h : a;
       var foot = "Écart projeté : " + esc(fav.info.abbr) + " par " + f1(Math.abs(margin)) + " · Total projeté : " + f1(pr.homePts + pr.awayPts);
@@ -492,8 +513,10 @@
       foot += h2hHtml(h, a) + injHtml(g);
       var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
       return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
-        sideHtml(g, "away", a, pr.awayPts, pr.pAway, americanToDecimal(o.awayMoneyline), false) +
-        sideHtml(g, "home", h, pr.homePts, pr.pHome, americanToDecimal(o.homeMoneyline), true) +
+        sideHtml(g, "away", a, pr.awayPts, pr.pAway, americanToDecimal(o.awayMoneyline), false,
+          1 - pr.pModelHome, pr.pBookHome == null ? null : 1 - pr.pBookHome) +
+        sideHtml(g, "home", h, pr.homePts, pr.pHome, americanToDecimal(o.homeMoneyline), true,
+          pr.pModelHome, pr.pBookHome) +
         '<div class="foot num">' + foot + few + "</div></div>";
     }).join("") + "</div>";
   }
@@ -513,7 +536,11 @@
     { label: "10 dern.", val: function (t) { return t.l10.w; }, rec: "l10" },
     { label: "Moy. 10", val: function (t) { return t.l10.pf; }, show: f1 },
     { label: "Domicile", val: function (t) { return t.homeRec.n ? t.homeRec.w / t.homeRec.n : 0; }, rec: "homeRec" },
-    { label: "Étranger", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, rec: "awayRec" }
+    { label: "% V dom.", val: function (t) { return t.homeRec.n ? t.homeRec.w / t.homeRec.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
+    { label: "Pts dom.", val: function (t) { return t.homeRec.pf; }, show: f1 },
+    { label: "Étranger", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, rec: "awayRec" },
+    { label: "% V étr.", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
+    { label: "Pts étr.", val: function (t) { return t.awayRec.pf; }, show: f1 }
   ];
   var sortCol = 4, sortDir = -1;
 
@@ -623,7 +650,10 @@
     f1(leagueAvg) + " points, avec un poids de " + SHRINK_GAMES + " matchs), parce que quelques matchs ne suffisent pas à juger une équipe.</p>" +
     "<p>Points projetés = attaque de l'équipe × défense de l'adversaire ÷ moyenne de la ligue, avec " + HOME_EDGE +
     " points d'écart en faveur de l'équipe à domicile. La probabilité de victoire vient de l'écart projeté, en supposant un écart-type de " +
-    MARGIN_SD + " points. Notre cote = 1 ÷ probabilité.</p>" +
+    MARGIN_SD + " points.</p>" +
+    "<p>Quand le book donne une cote, la probabilité retenue mélange " + Math.round((1 - MARKET_W) * 100) + " % modèle et " +
+    Math.round(MARKET_W * 100) + " % book (sa cote sans sa marge) ; même chose pour l'écart et le total. Le modèle seul surestime les outsiders, " +
+    "parce que ses moyennes ramenées vers la ligue rapprochent les équipes. Notre cote = 1 ÷ probabilité retenue.</p>" +
     "<p>Valeur espérée = probabilité × cote du book − 1. À partir de +" + Math.round(EV_GOOD * 100) +
     " %, la page dit « ça vaut le coup » ; au-delà de +" + Math.round(EV_SUSPECT * 100) + " %, elle dit « suspect » : un vrai avantage contre le book dépasse rarement quelques pour cent. " +
     "Écart : probabilité de couvrir = écart projeté contre la ligne, écart-type " + MARGIN_SD + " pts. Total : écart-type " + TOTAL_SD + " pts. Les deux supposent une cote de -110 (1.91). " +
