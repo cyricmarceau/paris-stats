@@ -62,7 +62,9 @@ async function update(change, message) {
 }
 
 function validBet(b) {
+  const teamId = v => typeof v === 'string' && /^\d{1,10}$/.test(v); // identifiants ESPN numériques
   return b && typeof b.id === 'string' && b.id.length <= 40 && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
+    teamId(b.homeId) && teamId(b.awayId) &&
     Number.isFinite(b.odds) && b.odds > 1 && b.odds < 1000 && Number.isFinite(b.stake) && b.stake > 0 && b.stake < 1e6 &&
     typeof b.who === 'string' && b.who.length <= 40 && Number.isFinite(Date.parse(b.date)) &&
     (b.market === 'total' || b.market === 'prop' ? ['over', 'under'] : ['home', 'away']).includes(b.pick) &&

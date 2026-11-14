@@ -571,7 +571,8 @@
       "</div></div>";
   }
 
-  function abbr(id) { return teams[id] ? teams[id].info.abbr : "?"; }
+  // hasOwnProperty : un id comme « constructor » ne doit pas tomber sur une propriété héritée de Object.prototype.
+  function abbr(id) { return Object.prototype.hasOwnProperty.call(teams, id) ? teams[id].info.abbr : "?"; }
 
   // ---- Face-à-face et blessures ----
   var PL = window.NBA_PLAYERS && window.NBA_PLAYERS.players ? window.NBA_PLAYERS : null;

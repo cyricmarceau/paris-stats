@@ -35,7 +35,7 @@ async function startServer(env = {}) {
   return { call, github };
 }
 
-const validBet = (o = {}) => ({ id: 'b1', gameId: '401909977', market: 'ml', pick: 'home', odds: 2.5, stake: 10, who: 'Cyric', date: '2026-11-13T00:00:00.000Z', ...o });
+const validBet = (o = {}) => ({ id: 'b1', gameId: '401909977', homeId: '27', awayId: '8', market: 'ml', pick: 'home', odds: 2.5, stake: 10, who: 'Cyric', date: '2026-11-13T00:00:00.000Z', ...o });
 
 test('santé et liste vide ; la branche paris-data est créée', async () => {
   const s = await startServer();
@@ -102,7 +102,7 @@ test('tout id accepté par POST doit pouvoir être supprimé par DELETE', { todo
   assert.deepEqual(del.json.bets, []);
 });
 
-test('un pari avec un identifiant d’équipe dangereux doit être refusé', {todo:'backlog 14'}, async () => {
+test('un pari avec un identifiant d’équipe dangereux doit être refusé', async () => {
   const s = await startServer();
   const r = await s.call('/api/bets', {method:'POST',code:'secret',body:{bet:validBet({homeId:'constructor',awayId:'1'})}});
   assert.equal(r.status, 400);

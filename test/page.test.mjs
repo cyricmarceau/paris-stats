@@ -134,7 +134,7 @@ test('libellé d’un pari', () => {
   assert.equal(p.betLabel(bet({ market: 'total', pick: 'under', line: 221.5 })), 'Under 221.5');
 });
 
-test('un identifiant d’équipe hérité ne doit pas empêcher le chargement des paris', {todo:'backlog 14'}, () => {
+test('un identifiant d’équipe hérité ne doit pas empêcher le chargement des paris', () => {
   assert.doesNotThrow(() => loadPage({data:sampleData(),storage:{
     'paris-stats-bets':JSON.stringify([bet({market:'ml',pick:'home',homeId:'constructor'})])
   }}));
