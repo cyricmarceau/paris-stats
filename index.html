@@ -879,7 +879,11 @@
       if (pendAdd.length) {
         var toSend = bets.filter(function (b) { return pendAdd.indexOf(b.id) >= 0; });
         chain = chain.then(function () { return api("/api/bets", { method: "POST", body: { bets: toSend } }); })
-          .then(function (r) { pendAdd = pendAdd.filter(function (id) { return !toSend.some(function (b) { return b.id === id; }); }); savePend(); adopt(r.bets || []); return r; });
+          // Ne retire de l'attente que les paris que le serveur a vraiment gardés : un pari refusé reste sur l'appareil.
+          .then(function (r) {
+            var kept = {}; (r.bets || []).forEach(function (b) { kept[b.id] = true; });
+            pendAdd = pendAdd.filter(function (id) { return !kept[id]; }); savePend(); adopt(r.bets || []); return r;
+          });
       }
       pendDel.slice().forEach(function (id) {
         chain = chain.then(function () { return api("/api/bets/" + encodeURIComponent(id), { method: "DELETE" }); })
@@ -891,6 +895,7 @@
     }, function (e) {
       if (e && e.status === 401) setSync("code", teamCode ? "Code d'équipe invalide." : "");
       else if (e && e.status === 503) setSync("off", "Serveur pas encore configuré.");
+      else if (e && e.status === 400) setSync("off", "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
       else setSync("off", "Serveur injoignable.");
       renderBets();
     }).then(function () { syncing = false; });
