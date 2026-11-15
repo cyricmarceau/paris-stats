@@ -31,7 +31,7 @@ function memoryStorage(initial = {}) {
 }
 
 // data : contenu de window.NBA_DATA. fetch : remplace l'appel réseau de la page (par défaut, ne répond jamais).
-export function loadPage({ data, players = null, storage = {}, fetch } = {}) {
+export function loadPage({ data, players = null, storage = {}, fetch, prompt } = {}) {
   const els = new Map();
   const document = {
     hidden: false,
@@ -46,7 +46,7 @@ export function loadPage({ data, players = null, storage = {}, fetch } = {}) {
     fetch: fetch || (() => new Promise(() => {})),
     AbortController,
     setTimeout: () => 0, clearTimeout: () => {},
-    NBA_DATA: data, NBA_PLAYERS: players,
+    NBA_DATA: data, NBA_PLAYERS: players, prompt,
     __PS_TEST__: x => { api = x; }
   };
   sandbox.window = sandbox;
