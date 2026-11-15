@@ -268,7 +268,7 @@ for (const invalidFirst of [true, false]) {
   });
 }
 
-test('backlog 21 : message GitHub ne cite que le parieur effectivement ajoute', {todo:'backlog 21'}, async () => {
+test('backlog 21 : message GitHub ne cite que le parieur effectivement ajoute', async () => {
   const s=await startServer();
   const r=await s.call('/api/bets',{method:'POST',code:'secret',body:{bets:[validBet({who:'Premier'}),validBet({who:'Second'})]}});
   assert.equal(r.status,200);
@@ -286,7 +286,7 @@ test('revue 9 : DELETE tres long et id deja absent', async () => {
   assert.equal((await s.call('/health')).status,200);
 });
 
-test('backlog 23 : closeOdds non numerique refuse avant stockage', {todo:'backlog 23'}, async () => {
+test('backlog 23 : closeOdds non numerique refuse avant stockage', async () => {
   const s=await startServer();
   const r=await s.call('/api/bets',{method:'POST',code:'secret',body:{bet:validBet({closeOdds:{toString:null}})}});
   assert.equal(r.status,400);

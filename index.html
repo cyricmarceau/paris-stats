@@ -349,7 +349,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 26</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 27</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -959,9 +959,10 @@
     bets = out; saveBets(); updateClose();
   }
   function setSync(state, msg) { SYNC.state = state; SYNC.msg = msg || ""; if (state === "ok") SYNC.at = new Date(); var el = document.getElementById("syncBox"); if (el) el.innerHTML = syncHtml(); }
-  var syncing = false;
+  // Une synchro demandée pendant qu'une autre tourne (ex. pari ajouté pendant l'envoi) est relancée à la fin.
+  var syncing = false, syncAgain = false;
   function sync() {
-    if (syncing) return; syncing = true;
+    if (syncing) { syncAgain = true; return; } syncing = true; syncAgain = false;
     setSync("busy");
     api("/api/bets").then(function (j) {
       if (!lsGet("paris-stats-migrated", false)) { // 1re connexion : envoie les paris déjà enregistrés sur cet appareil
@@ -1009,7 +1010,7 @@
       else if (e && e.status === 400) setSync("off", e.userMsg || "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
       else setSync("off", "Serveur injoignable.");
       renderBets();
-    }).then(function () { syncing = false; });
+    }).then(function () { syncing = false; if (syncAgain) sync(); });
   }
   function syncHtml() {
     var n = pendAdd.length + pendDel.length;
