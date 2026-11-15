@@ -349,7 +349,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 25</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 26</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -1057,7 +1057,8 @@
   // CLV : positif = on a eu mieux que la ligne de fermeture.
   function betClv(b) {
     if (b.market === "ml") {
-      if (!b.closeOdds) return null;
+      // Ancienne valeur mal typée (objet, texte) : on l'ignore au lieu de planter le rendu.
+      if (typeof b.closeOdds !== "number" || !(b.closeOdds > 1)) return null;
       var cv = b.odds / b.closeOdds - 1;
       return { v: cv, txt: (cv > 0 ? "+" : "") + (cv * 100).toFixed(1) + " %" };
     }
@@ -1509,7 +1510,8 @@
     }
     if (!el.classList || !el.classList.contains("odds")) return;
     var id = el.getAttribute("data-id");
-    if (el.value === "") delete saved[id]; else saved[id] = { v: el.value, t: Date.now() };
+    // Cote du book effacée à la main : on garde « vide » pour que Top paris et le formulaire ne la reprennent pas.
+    if (el.value === "" && !el.getAttribute("data-book")) delete saved[id]; else saved[id] = { v: el.value, t: Date.now() };
     save();
     refresh(el);
   });

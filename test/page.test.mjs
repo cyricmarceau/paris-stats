@@ -170,7 +170,7 @@ test('backlog 17: malformed optional player name must not prevent page loading',
   } }));
 });
 
-test('backlog 23 : ancienne closeOdds mal typee ne bloque pas le rendu', {todo:'backlog 23'}, () => {
+test('backlog 23 : ancienne closeOdds mal typee ne bloque pas le rendu', () => {
   assert.doesNotThrow(()=>loadPage({data:sampleData(),storage:{
     'paris-stats-bets':JSON.stringify([bet({market:'ml',pick:'home',closeOdds:{toString:null}})])
   }}));

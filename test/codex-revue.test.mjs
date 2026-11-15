@@ -50,14 +50,14 @@ const bet = { id: 'revue', gameId: 'g1', homeId: '1', awayId: '2', market: 'ml',
 const poison = { ...bet, closeOdds: { toString: null } };
 
 // Défaut de validation préexistant (backlog 23), désormais accessible sans code (#20).
-test('revue 1 : POST anonyme refuse closeOdds objet', { todo: 'revue 1' }, async t => {
+test('revue 1 : POST anonyme refuse closeOdds objet', async t => {
   const s = await server(t);
   const r = await s.call('/api/bets', 'POST', { bet: poison });
   assert.equal(r.status, 400);
   assert.equal(s.github().puts, 0);
 });
 
-test('revue 1 : un pari accepté sans code ne bloque pas le prochain chargement', { todo: 'revue 1' }, async t => {
+test('revue 1 : un pari accepté sans code ne bloque pas le prochain chargement', async t => {
   const s = await server(t);
   const posted = await s.call('/api/bets', 'POST', { bet: poison });
   if (posted.status === 400) return; // Une validation serveur corrige aussi ce chemin.
@@ -69,7 +69,7 @@ test('revue 1 : un pari accepté sans code ne bloque pas le prochain chargement'
 });
 
 // Défaut préexistant (backlog 2), exploitable sans code depuis #20.
-test('revue 2 : DELETE anonyme absent ne crée aucun commit GitHub', { todo: 'revue 2' }, async t => {
+test('revue 2 : DELETE anonyme absent ne crée aucun commit GitHub', async t => {
   const s = await server(t);
   assert.equal((await s.call('/api/bets', 'POST', { bet })).status, 200);
   const before = s.github().puts;
@@ -85,7 +85,7 @@ function clickButton(p, tag) {
   p.document.getElementById('app').dispatchEvent({ type: 'click', target: button });
 }
 
-test('revue 3 : Top ne réutilise pas une cote effacée et absente du formulaire', { todo: 'revue 3' }, () => {
+test('revue 3 : Top ne réutilise pas une cote effacée et absente du formulaire', () => {
   const p = loadPage({ data: sampleData({ upcomingOdds: odds }) });
   const app = p.document.getElementById('app');
   assert.ok(p.topCandidates().some(c => c.market === 'ml' && c.pick === 'home'));
