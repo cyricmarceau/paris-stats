@@ -292,3 +292,23 @@ test('backlog 23 : closeOdds non numerique refuse avant stockage', async () => {
   assert.equal(r.status,400);
   assert.equal(s.github().puts,0);
 });
+
+test('NHL : ligue et stats de joueurs hockey validées par ligue', async () => {
+  const s = await startServer();
+  const post = b => s.call('/api/bets', { method: 'POST', body: { bet: b } }).then(r => r.status);
+  const prop = o => validBet({ market: 'prop', pick: 'over', line: 0.5, playerId: '3895074', ...o });
+  assert.equal(await post(validBet({ id: 'n1', league: 'nhl' })), 200);
+  assert.equal(await post(prop({ id: 'n2', league: 'nhl', stat: 'goals' })), 200);
+  assert.equal(await post(prop({ id: 'n3', stat: 'pts' })), 200);                    // ancien pari NBA sans ligue
+  assert.equal(await post(prop({ id: 'n4', league: 'nhl', stat: 'reb' })), 400);     // stat NBA sur un pari NHL
+  assert.equal(await post(prop({ id: 'n5', stat: 'goals' })), 400);                  // stat NHL sur un pari NBA
+  assert.equal(await post(validBet({ id: 'n6', league: 'mlb' })), 400);
+  assert.equal(await post(validBet({ id: 'n7', league: 'constructor' })), 400);
+  assert.deepEqual(JSON.parse(s.github().file).map(b => b.id), ['n1', 'n2', 'n3']);
+});
+test('revue Codex 2 : ligue en tableau ou en objet refusée sans planter le lot', async () => {
+  const s = await startServer();
+  const r1 = await s.call('/api/bets', { method: 'POST', body: { bets: [validBet({ id: 'x1', league: ['nhl'] }), validBet({ id: 'x2', league: { toString: 'nhl' } }), validBet({ id: 'ok' })] } });
+  assert.equal(r1.status, 200);
+  assert.deepEqual(r1.json.bets.map(b => b.id), ['ok']);
+});

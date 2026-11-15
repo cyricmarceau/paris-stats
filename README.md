@@ -32,3 +32,13 @@ Si ce script échoue, `data.js` est quand même publié et la page fonctionne sa
 `server.mjs` est une petite API (Node, sans dépendance) déployée comme service web Render `paris-stats-api`. Elle garde les paris dans `bets.json` sur la branche `paris-data` du dépôt (pas `main`, pour ne pas redéployer le site à chaque pari). Pas de code d'équipe : tout le monde peut lire, ajouter et supprimer des paris. Si le serveur ne répond pas, les paris restent dans le navigateur et sont envoyés à la prochaine synchro.
 
 Variables à définir dans Render : `GITHUB_TOKEN` (jeton GitHub fine-grained limité à ce dépôt, permission *Contents : Read and write*).
+
+## NHL 2026-27
+
+Lancer `node fetch-nhl.mjs`, puis `node fetch-nhl-extras.mjs`. Sources ESPN publiques : `/apis/site/v2/sports/hockey/nhl/teams`, `/scoreboard`, `/summary?event=ID` et `/injuries`.
+
+`nhl-data.js` expose `window.NHL_DATA` : 32 equipes, saison reguliere ESPN 2027/type 2 depuis le 1er octobre 2026, scores finaux (prolongation/tirs de barrage inclus avec `ot: true`), calendrier des sept prochains jours et cotes disponibles. Le spread est la puck line du domicile, le total est en buts et les moneylines sont americaines ; les valeurs absentes restent `null`.
+
+`nhl-players.js` expose `window.NHL_PLAYERS` : patineurs uniquement et blessures. Chaque ligne `g` contient `[gameId, date, equipeId, adversaireId, domicile, tempsDeGlace, buts, passes, points, tirs]`. `timeOnIce` (MM:SS) est converti en minutes arrondies au dixieme ; `goals`, `assists`, `shotsTotal` fournissent les autres stats, et points = buts + passes. Les groupes ESPN `forwards`, `defenses` et `skaters` sont lus, `goalies` est ignore. Les feuilles incompletes ne sont pas marquees `done` et seront retentees. Aucun face-a-face NHL.
+
+Les fichiers sont remplaces atomiquement, avec refus des resultats vides. Le workflow execute les deux collectes NHL apres la NBA, chacune avec `continue-on-error: true`, puis publie les fichiers disponibles. Les scripts NBA restent inchanges.

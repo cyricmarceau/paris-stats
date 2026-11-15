@@ -32,16 +32,22 @@ jobs:
         # Si ça échoue, on publie quand même data.js.
         continue-on-error: true
         run: node fetch-extras.mjs
+      - name: Resultats, calendrier et cotes NHL
+        continue-on-error: true
+        run: node fetch-nhl.mjs
+      - name: Stats des joueurs et blessures NHL
+        continue-on-error: true
+        run: node fetch-nhl-extras.mjs
       - name: Publier data.js
         run: |
-          if git diff --quiet -- data.js && git diff --quiet -- players.js h2h.js h2hbox.js 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard players.js h2h.js h2hbox.js)" ]; then
+          if git diff --quiet -- data.js && git diff --quiet -- players.js h2h.js h2hbox.js nhl-data.js nhl-players.js 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard players.js h2h.js h2hbox.js nhl-data.js nhl-players.js)" ]; then
             echo "Aucun changement."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data.js
-          for f in players.js h2h.js h2hbox.js; do [ -f "$f" ] && git add "$f"; done
+          for f in players.js h2h.js h2hbox.js nhl-data.js nhl-players.js; do [ -f "$f" ] && git add "$f"; done
           git commit -m "Données NBA rafraîchies ($(date -u +'%Y-%m-%d %H:%M') UTC)"
           git pull --rebase origin main
           git push origin HEAD:main
