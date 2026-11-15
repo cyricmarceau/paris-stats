@@ -89,5 +89,21 @@
   "p": 0.4257721513059902,
   "createdAt": "2026-11-12T04:30:21.134Z",
   "closeOdds": 2.6399999999999997
+ },
+ {
+  "id": "mwhd497kniwjr",
+  "gameId": "401909989",
+  "date": "2026-11-15T23:00:00.000Z",
+  "homeId": "2",
+  "awayId": "6",
+  "market": "spread",
+  "pick": "away",
+  "odds": 1.91,
+  "stake": 20,
+  "who": "Will",
+  "p": 0.5464553923489353,
+  "createdAt": "2026-11-15T04:56:43.424Z",
+  "line": -14.5,
+  "closeLine": -14.5
  }
 ]
