@@ -4,14 +4,12 @@
 //
 // Variables d'environnement :
 //   GITHUB_TOKEN  jeton GitHub « fine-grained » limité au dépôt, permission Contents : Read and write
-//   BETS_CODE     code d'équipe demandé pour ajouter ou supprimer un pari
 //   GITHUB_REPO   ex. cyricmarceau/paris-stats
 //   DATA_BRANCH   ex. paris-data (pas main : un commit sur main redéploierait le site)
 //   ALLOW_ORIGIN  ex. https://paris-stats.onrender.com
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 
-const { GITHUB_TOKEN, BETS_CODE } = process.env;
+const { GITHUB_TOKEN } = process.env;
 const REPO = process.env.GITHUB_REPO || 'cyricmarceau/paris-stats';
 const BRANCH = process.env.DATA_BRANCH || 'paris-data';
 const ORIGIN = process.env.ALLOW_ORIGIN || 'https://paris-stats.onrender.com';
@@ -77,12 +75,6 @@ function validBet(b) {
     (b.market === 'ml' || Number.isFinite(b.line)) && JSON.stringify(b).length < 2000;
 }
 
-function codeOk(req) {
-  const given = Buffer.from(String(req.headers['x-code'] || ''));
-  const want = Buffer.from(String(BETS_CODE || ''));
-  return want.length > 0 && given.length === want.length && timingSafeEqual(given, want);
-}
-
 function send(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -105,9 +97,9 @@ createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     if (req.method === 'OPTIONS') return send(res, 204);
     if (url.pathname === '/' || url.pathname === '/health') return send(res, 200, { ok: true });
-    if (!GITHUB_TOKEN || !BETS_CODE) return send(res, 503, { error: 'Serveur pas encore configuré (GITHUB_TOKEN, BETS_CODE).' });
+    if (!GITHUB_TOKEN) return send(res, 503, { error: 'Serveur pas encore configuré (GITHUB_TOKEN).' });
     if (url.pathname === '/api/bets' && req.method === 'GET') return send(res, 200, { bets: (await load()).bets });
-    if (!codeOk(req)) return send(res, 401, { error: 'Code d\'équipe invalide.' });
+    // Pas de code d'équipe : tout le monde peut ajouter et supprimer (choix de Cyric, 15 nov. 2026).
     if (url.pathname === '/api/bets' && req.method === 'POST') {
       const body = await readBody(req);
       const list = Array.isArray(body.bets) ? body.bets : [body.bet];

@@ -24,7 +24,7 @@ Site de stats NBA et de suivi de paris pour Cyric et Will. Répondre en françai
 - Lancer `npm test` avant chaque commit ; ajouter un test pour chaque bug corrigé. Ne jamais supprimer un test pour le faire passer.
 - Le script de `index.html` dépend de nombreux `id`, classes et attributs `data-` : ne pas les renommer. Une refonte visuelle se fait dans le bloc `<style>`.
 - Le crochet `window.__PS_TEST__` à la fin du script sert aux tests (`test/page-harness.mjs`) : le garder à jour si on ajoute une fonction à tester.
-- Ne pas toucher aux secrets ni à la config de déploiement (`render.yaml`, variables Render `GITHUB_TOKEN`, `BETS_CODE`) sans demander.
+- Ne pas toucher aux secrets ni à la config de déploiement (`render.yaml`, variable Render `GITHUB_TOKEN`) sans demander.
 - Un bug : partir de l'erreur exacte et chercher la cause, pas tout refaire.
 - La boucle d'amélioration Claude (dev) / Codex (revue) suit `LOOP.md` quand il existe.
 
