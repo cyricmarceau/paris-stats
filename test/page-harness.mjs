@@ -31,7 +31,8 @@ function memoryStorage(initial = {}) {
 }
 
 // data : contenu de window.NBA_DATA. fetch : remplace l'appel réseau de la page (par défaut, ne répond jamais).
-export function loadPage({ data, players = null, storage = {}, fetch, prompt } = {}) {
+// nhlData / nhlPlayers : contenu de window.NHL_DATA / NHL_PLAYERS (absents par défaut).
+export function loadPage({ data, players = null, nhlData = null, nhlPlayers = null, storage = {}, fetch, prompt } = {}) {
   const els = new Map();
   const document = {
     hidden: false,
@@ -46,7 +47,7 @@ export function loadPage({ data, players = null, storage = {}, fetch, prompt } =
     fetch: fetch || (() => new Promise(() => {})),
     AbortController,
     setTimeout: () => 0, clearTimeout: () => {},
-    NBA_DATA: data, NBA_PLAYERS: players, prompt,
+    NBA_DATA: data, NBA_PLAYERS: players, NHL_DATA: nhlData, NHL_PLAYERS: nhlPlayers, prompt,
     __PS_TEST__: x => { api = x; }
   };
   sandbox.window = sandbox;

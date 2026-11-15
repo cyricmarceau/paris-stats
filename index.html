@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paris stats NBA</title>
+<title>Paris stats NBA · NHL</title>
 <style>
 /* Palette sombre, typographie système et surfaces sobres. */
   :root {
@@ -211,11 +211,15 @@
   html { scroll-padding-top: 90px; }
   body { background: var(--background); }
   h1 { font-weight: 750; }
-  h1::before { content: "NBA / ANALYSE & SUIVI"; display: block; margin-bottom: 10px; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.5; }
+  h1::before { content: "NBA · NHL / ANALYSE & SUIVI"; display: block; margin-bottom: 10px; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .16em; line-height: 1.5; }
   h2 { font-weight: 700; letter-spacing: -.02em; }
   #meta, #maj { color: var(--muted-foreground); }
   #maj b { color: var(--foreground); }
   .live { background: #15352b; border-color: #31624c; font-size: 11px; }
+  .lgsw { display: inline-flex; gap: 4px; vertical-align: middle; }
+  .lgsw button { cursor: pointer; background: transparent; font-family: inherit; }
+  .lgsw button.on { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+  .lgi { margin-right: 4px; }
   .me { cursor: pointer; background: transparent; font-family: inherit; color: var(--foreground); }
   .rev { display: inline-block; vertical-align: middle; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: 11px; font-weight: 600; letter-spacing: .01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
   nav.menu { top: 12px; width: 100%; margin: 26px 0 28px; gap: 6px; padding: 6px; background: #131d2c; border-color: var(--border); border-radius: 16px; box-shadow: 0 8px 24px #0004; }
@@ -349,7 +353,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 27</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats <span class="lgsw" id="lgsw"><button type="button" class="rev" data-lg="nba">🏀 NBA</button><button type="button" class="rev" data-lg="nhl">🏒 NHL</button></span> <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 28</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -359,15 +363,29 @@
 <script src="players.js"></script>
 <script src="h2h.js"></script>
 <script src="h2hbox.js"></script>
+<script src="nhl-data.js"></script>
+<script src="nhl-players.js"></script>
 <script>
 (function () {
   "use strict";
 
+  // ---- Ligue affichée (NBA ou NHL), choisie avec les boutons du haut et gardée sur l'appareil ----
+  var LEAGUE_KEY = "paris-stats-ligue";
+  var LG = "nba";
+  try { if (localStorage.getItem(LEAGUE_KEY) === "nhl") LG = "nhl"; } catch (e) {}
+  var SRC = { nba: { data: window.NBA_DATA, pl: window.NBA_PLAYERS }, nhl: { data: window.NHL_DATA, pl: window.NHL_PLAYERS } };
+  if (LG === "nhl" && !(SRC.nhl.data && SRC.nhl.data.teams && SRC.nhl.data.games)) LG = "nba";
+  var NHL = LG === "nhl";
+  var ICON = { nba: "🏀", nhl: "🏒" };
+  function lgIcon(k) { return '<span class="lgi" title="' + k.toUpperCase() + '">' + ICON[k] + "</span>"; }
+  var UNIT = NHL ? "buts" : "pts";
+
   // ---- Réglages du modèle ----
-  var HOME_EDGE = 2.5;     // avantage du terrain, en points d'écart
-  var MARGIN_SD = 12;      // écart-type de l'écart final d'un match NBA
+  // Hockey : modèle neuf, valeurs de départ à calibrer avec les résultats (≈ 6 buts par match, écart-type ≈ 2,3).
+  var HOME_EDGE = NHL ? 0.2 : 2.5;     // avantage du terrain, en points (buts) d'écart
+  var MARGIN_SD = NHL ? 2.3 : 12;      // écart-type de l'écart final d'un match
   var SHRINK_GAMES = 6;    // poids de la moyenne de la ligue, en matchs (6 = le plus proche des lignes du marché au test)
-  var TOTAL_SD = 18;       // écart-type du total de points d'un match NBA
+  var TOTAL_SD = NHL ? 2.3 : 18;       // écart-type du total de points (buts) d'un match
   // Marge de sécurité : valeur espérée minimale pour dire « ça vaut le coup » (réglable dans la page, 10 % par défaut).
   var EV_GOOD = 0.10;
   try { var mg = parseFloat(localStorage.getItem("paris-stats-marge")); if (isFinite(mg) && mg >= 0 && mg <= 50) EV_GOOD = mg / 100; } catch (e) {}
@@ -377,14 +395,25 @@
   var KELLY_FRAC = 0.25;   // quart de Kelly
   var MAX_STAKE = 0.03;
   // Stats des joueurs : colonne dans players.js, plancher de l'écart-type, ajustement par la défense adverse.
-  var STATS = {
-    pts: { i: 6, b: 3, label: "Points", short: "pts", floor: 4, opp: true },
-    reb: { i: 7, b: 4, label: "Rebonds", short: "reb", floor: 2 },
-    ast: { i: 8, b: 5, label: "Passes", short: "passes", floor: 1.5 },
-    tpm: { i: 9, b: 6, label: "Paniers à 3 pts", short: "3 pts", floor: 1 }
-  };    // jamais plus de 3 % de la bankroll sur un pari
+  var STATS_BY = {
+    nba: {
+      pts: { i: 6, b: 3, label: "Points", short: "pts", floor: 4, opp: true },
+      reb: { i: 7, b: 4, label: "Rebonds", short: "reb", floor: 2 },
+      ast: { i: 8, b: 5, label: "Passes", short: "passes", floor: 1.5 },
+      tpm: { i: 9, b: 6, label: "Paniers à 3 pts", short: "3 pts", floor: 1 }
+    },
+    // nhl-players.js : [match, date, équipe, adv., dom., minutes, buts, passes, points, tirs]
+    nhl: {
+      goals: { i: 6, label: "Buts", short: "buts", floor: 0.5, opp: true },
+      assists: { i: 7, label: "Passes", short: "passes", floor: 0.6 },
+      points: { i: 8, label: "Points", short: "pts", floor: 0.8, opp: true },
+      shots: { i: 9, label: "Tirs au but", short: "tirs", floor: 1.2 }
+    }
+  };
+  var STATS = STATS_BY[LG];
+  var MIN_MINUTES = NHL ? 8 : 12; // minutes moyennes minimum pour lister un joueur
 
-  var data = window.NBA_DATA;
+  var data = SRC[LG].data;
   var app = document.getElementById("app");
   var meta = document.getElementById("meta");
 
@@ -455,7 +484,7 @@
     t.awayRec = split(t.log.filter(function (x) { return !x.home; }));
     t.log.forEach(function (x) { allPts.push(x.pf); });
   });
-  var leagueAvg = avg(allPts) || 114;
+  var leagueAvg = avg(allPts) || (NHL ? 3 : 114);
 
   // ---- Projection ----
   // Attaque et défense : moyenne sur la période choisie (5 derniers par défaut),
@@ -575,8 +604,10 @@
       var pHome = normCdf((margin + o.spread) / MARGIN_SD);
       var side = pHome >= 0.5 ? esc(h.info.abbr) + " " + sgn(o.spread) : esc(a.info.abbr) + " " + sgn(-o.spread);
       var p = Math.max(pHome, 1 - pHome);
-      out.push('<span class="mkt">Écart : <b>' + side + "</b> couvre à " + pct(p) + " · " + verdict(p, STD_DEC) +
-        " " + betBtn('data-g="' + esc(g.id) + '" data-m="spread" data-pick="' + (pHome >= 0.5 ? "home" : "away") + '" data-p="' + p + '"', side, isHot(p, STD_DEC)) + "</span>");
+      // Puck line ±1,5 : sa cote est presque toujours loin de -110 (outsider +1,5 souvent vers -180), donc pas de verdict à -110.
+      var plv = NHL ? "notre cote " + (1 / p).toFixed(2) + ' <span class="sub">(compare avec la cote du book)</span>' : verdict(p, STD_DEC);
+      out.push('<span class="mkt">' + (NHL ? "Puck line" : "Écart") + ' : <b>' + side + "</b> couvre à " + pct(p) + " · " + plv +
+        " " + betBtn('data-g="' + esc(g.id) + '" data-m="spread" data-pick="' + (pHome >= 0.5 ? "home" : "away") + '" data-p="' + p + '"', side, !NHL && isHot(p, STD_DEC)) + "</span>");
     }
     if (typeof o.total === "number") {
       var pOver = 1 - normCdf((o.total - total) / TOTAL_SD);
@@ -585,7 +616,7 @@
       out.push('<span class="mkt">Total : <b>' + tside + "</b> à " + pct(tp) + " · " + verdict(tp, STD_DEC) +
         " " + betBtn('data-g="' + esc(g.id) + '" data-m="total" data-pick="' + (pOver >= 0.5 ? "over" : "under") + '" data-p="' + tp + '"', tside, isHot(tp, STD_DEC)) + "</span>");
     }
-    return out.length ? out.join("") + '<span class="mkt">(écart et total calculés à une cote de -110)</span>' : "";
+    return out.length ? out.join("") + '<span class="mkt">(' + (NHL ? "total calculé" : "écart et total calculés") + ' à une cote de -110)</span>' : "";
   }
 
   function sideHtml(g, key, t, pts, p, bookDec, isHome, pModel, pBook) {
@@ -615,8 +646,8 @@
   function abbr(id) { return Object.prototype.hasOwnProperty.call(teams, id) ? teams[id].info.abbr : "?"; }
 
   // ---- Face-à-face et blessures ----
-  var PL = window.NBA_PLAYERS && window.NBA_PLAYERS.players ? window.NBA_PLAYERS : null;
-  var H2H = window.NBA_H2H && Array.isArray(window.NBA_H2H.games) ? window.NBA_H2H.games : [];
+  var PL = SRC[LG].pl && SRC[LG].pl.players ? SRC[LG].pl : null;
+  var H2H = !NHL && window.NBA_H2H && Array.isArray(window.NBA_H2H.games) ? window.NBA_H2H.games : [];
   var STATUS_FR = { "Out": ["absent", "out"], "Day-To-Day": ["incertain", "dtd"], "Questionable": ["incertain", "dtd"], "Doubtful": ["douteux", "out"], "Probable": ["probable", ""], "Suspension": ["suspendu", "out"] };
   function injuryOf(teamId, playerId) {
     var list = PL && PL.injuries && PL.injuries[teamId] || [];
@@ -647,7 +678,7 @@
     var n = list.length;
     var lead = hw >= n - hw ? [h, hw, n - hw] : [a, n - hw, hw];
     return '<span class="info">Face-à-face (' + (n > 1 ? n + " derniers" : "dernier") + ", depuis " + esc(list[n - 1].d.slice(0, 4)) + ") : <b>" + esc(lead[0].info.abbr) + " " + lead[1] + "-" + lead[2] +
-      "</b> · moyenne " + esc(a.info.abbr) + " " + f1(ap / n) + " pts, " + esc(h.info.abbr) + " " + f1(hp / n) + " pts · total moyen " + f1(tot / n) + "</span>";
+      "</b> · moyenne " + esc(a.info.abbr) + " " + f1(ap / n) + " " + UNIT + ", " + esc(h.info.abbr) + " " + f1(hp / n) + " " + UNIT + " · total moyen " + f1(tot / n) + "</span>";
   }
   function injHtml(g) {
     if (!PL || !PL.injuries) return "";
@@ -677,14 +708,14 @@
       var foot = "Écart projeté : " + esc(fav.info.abbr) + " par " + f1(Math.abs(margin)) + " · Total projeté : " + f1(pr.homePts + pr.awayPts);
       if (g.odds) {
         var bits = [];
-        if (typeof o.spread === "number") bits.push("écart " + esc(h.info.abbr) + " " + (o.spread > 0 ? "+" : "") + o.spread);
+        if (typeof o.spread === "number") bits.push((NHL ? "puck line " : "écart ") + esc(h.info.abbr) + " " + (o.spread > 0 ? "+" : "") + o.spread);
         if (typeof o.total === "number") bits.push("total " + o.total);
         if (bits.length) foot += "<br>Ligne " + esc(o.provider || "du book") + " : " + bits.join(" · ");
         foot += marketsHtml(g, h, a, pr, o);
       }
       foot += h2hHtml(h, a) + injHtml(g);
       var few = Math.min(h.all.n, a.all.n) < 5 ? "<br>Peu de matchs joués : projection fragile." : "";
-      return '<div class="game"><div class="when">' + esc(fmt.format(new Date(g.date))) + "</div>" +
+      return '<div class="game"><div class="when">' + lgIcon(LG) + esc(fmt.format(new Date(g.date))) + "</div>" +
         sideHtml(g, "away", a, pr.awayPts, pr.pAway, americanToDecimal(o.awayMoneyline), false,
           1 - pr.pModelHome, pr.pBookHome == null ? null : 1 - pr.pBookHome) +
         sideHtml(g, "home", h, pr.homePts, pr.pHome, americanToDecimal(o.homeMoneyline), true,
@@ -710,7 +741,8 @@
         var dec = saved[id] ? parseFloat(saved[id].v) : americanToDecimal(s[3]);
         add("ml", s[0], s[1].info.abbr + " gagne", s[2], dec);
       });
-      if (typeof o.spread === "number") {
+      // NHL : pas de puck line dans le Top, sa vraie cote est inconnue (voir marketsHtml).
+      if (typeof o.spread === "number" && !NHL) {
         var pH = normCdf((pr.margin + o.spread) / MARGIN_SD);
         add("spread", "home", h.info.abbr + " " + sgn(o.spread), pH, STD_DEC);
         add("spread", "away", a.info.abbr + " " + sgn(-o.spread), 1 - pH, STD_DEC);
@@ -728,7 +760,7 @@
     var fmt = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     var row = function (c) {
       return '<div class="toprow">' +
-        '<div class="topwhat"><b>' + esc(c.label) + "</b><small>" + esc(c.a.info.abbr) + " @ " + esc(c.h.info.abbr) + " · " + esc(fmt.format(new Date(c.g.date))) + "</small></div>" +
+        '<div class="topwhat"><b>' + lgIcon(LG) + esc(c.label) + "</b><small>" + esc(c.a.info.abbr) + " @ " + esc(c.h.info.abbr) + " · " + esc(fmt.format(new Date(c.g.date))) + "</small></div>" +
         '<div class="topnum num">Chance ' + pct(c.p) + " · cote " + c.dec.toFixed(2) + (c.market === "ml" ? "" : " (-110)") + "</div>" +
         '<div class="topev">' + verdict(c.p, c.dec) + "</div>" +
         betBtn('data-g="' + esc(c.g.id) + '" data-m="' + c.market + '" data-pick="' + c.pick + '" data-p="' + c.p + '"', "", isHot(c.p, c.dec)) +
@@ -756,8 +788,8 @@
     { label: "V", val: function (t) { return t.all.w; } },
     { label: "D", val: function (t) { return t.all.l; } },
     { label: "% V", val: function (t) { return t.all.n ? t.all.w / t.all.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
-    { label: "Pts pour", val: function (t) { return t.all.pf; }, show: f1 },
-    { label: "Pts contre", val: function (t) { return t.all.pa; }, show: f1 },
+    { label: NHL ? "Buts pour" : "Pts pour", val: function (t) { return t.all.pf; }, show: f1 },
+    { label: NHL ? "Buts contre" : "Pts contre", val: function (t) { return t.all.pa; }, show: f1 },
     { label: "Diff.", val: function (t) { return t.all.pf - t.all.pa; }, show: function (v) { return (v > 0 ? "+" : "") + f1(v); }, signed: true },
     { label: "5 dern.", val: function (t) { return t.l5.w; }, rec: "l5" },
     { label: "Moy. 5", val: function (t) { return t.l5.pf; }, show: f1 },
@@ -765,10 +797,10 @@
     { label: "Moy. 10", val: function (t) { return t.l10.pf; }, show: f1 },
     { label: "Domicile", val: function (t) { return t.homeRec.n ? t.homeRec.w / t.homeRec.n : 0; }, rec: "homeRec" },
     { label: "% V dom.", val: function (t) { return t.homeRec.n ? t.homeRec.w / t.homeRec.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
-    { label: "Pts dom.", val: function (t) { return t.homeRec.pf; }, show: f1 },
+    { label: NHL ? "Buts dom." : "Pts dom.", val: function (t) { return t.homeRec.pf; }, show: f1 },
     { label: "Étranger", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, rec: "awayRec" },
     { label: "% V étr.", val: function (t) { return t.awayRec.n ? t.awayRec.w / t.awayRec.n : 0; }, show: function (v) { return (v * 100).toFixed(0); } },
-    { label: "Pts étr.", val: function (t) { return t.awayRec.pf; }, show: f1 }
+    { label: NHL ? "Buts étr." : "Pts étr.", val: function (t) { return t.awayRec.pf; }, show: f1 }
   ];
   var sortCol = 4, sortDir = -1;
 
@@ -801,7 +833,7 @@
 
   // ---- Affichage ----
   var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString("fr-CA", { dateStyle: "long", timeStyle: "short" }) : "?";
-  meta.textContent = "Saison " + (data.season || "") + " · " + data.games.length + " matchs joués · données du " + when +
+  meta.textContent = LG.toUpperCase() + " · Saison " + (data.season || "") + " · " + data.games.length + " matchs joués · données du " + when +
     (data.source ? " (" + data.source + ")" : "");
 
   // Voyant : vert si les données ont moins de 13 h (le plus long écart entre deux mises à jour est d'environ 11 h 30).
@@ -864,7 +896,8 @@
     "</nav>" +
     '<section class="view" id="view-matchs">' + stale +
     "<h2>Matchs à venir</h2>" +
-    '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.</div>' +
+    '<div class="sub">Entre la cote décimale du book pour voir si elle vaut le coup par rapport à la nôtre.' +
+      (NHL ? " <b>Modèle hockey neuf</b> : ses chances sont encore à valider avec nos résultats." : "") + "</div>" +
     '<details class="settings"><summary>Réglages du modèle et bankroll</summary>' + bankHtml() + "</details>" +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
     "</section>" +
@@ -914,11 +947,27 @@
   data.games.forEach(function (g) { gameById[g.id] = g; });
   (data.upcoming || []).forEach(function (g) { upcomingById[g.id] = g; });
 
+  // Nos paris montrent les deux ligues : chaque pari est lu avec les données de SA ligue.
+  // Les id d'équipe ESPN se recoupent entre NBA et NHL : toujours chercher une équipe avec sa ligue.
+  // Pari sans champ « league » (tous ceux d'avant la NHL) = NBA.
+  function lgOf(b) { return b && b.league === "nhl" ? "nhl" : "nba"; }
+  var LGM = {};
+  ["nba", "nhl"].forEach(function (k) {
+    var d = SRC[k].data || {}, pl = SRC[k].pl && SRC[k].pl.players ? SRC[k].pl : null;
+    var m = { teams: dict(), games: dict(), up: dict(), pl: pl, stats: STATS_BY[k] };
+    (d.teams || []).forEach(function (t) { m.teams[t.id] = t; });
+    (d.games || []).forEach(function (g) { m.games[g.id] = g; });
+    (d.upcoming || []).forEach(function (g) { m.up[g.id] = g; });
+    LGM[k] = m;
+  });
+  function statsOf(b) { return LGM[lgOf(b)].stats; }
+  function teamAbbr(b, id) { var t = own(LGM[lgOf(b)].teams, id); return t ? t.abbr : "?"; }
+
   // Cote de fermeture : dernière cote vue avant le début du match.
   function updateClose() {
     var now = Date.now(), changed = false;
     bets.forEach(function (b) {
-      var u = upcomingById[b.gameId];
+      var u = own(LGM[lgOf(b)].up, b.gameId);
       if (!u || !u.odds || new Date(u.date).getTime() <= now) return;
       if (b.market === "ml") {
         var d = americanToDecimal(b.pick === "home" ? u.odds.homeMoneyline : u.odds.awayMoneyline);
@@ -1026,19 +1075,20 @@
 
   // b.line : écart du point de vue du domicile, ou total.
   function betLabel(b) {
-    if (b.market === "ml") return abbr(b.pick === "home" ? b.homeId : b.awayId) + " gagne";
-    if (b.market === "spread") return b.pick === "home" ? abbr(b.homeId) + " " + sideLine(b.line) : abbr(b.awayId) + " " + sideLine(-b.line);
-    if (b.market === "prop") return (typeof b.playerName === "string" && b.playerName ? b.playerName : "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(STATS, b.stat) ? STATS[b.stat].short : "");
+    if (b.market === "ml") return teamAbbr(b, b.pick === "home" ? b.homeId : b.awayId) + " gagne";
+    if (b.market === "spread") return b.pick === "home" ? teamAbbr(b, b.homeId) + " " + sideLine(b.line) : teamAbbr(b, b.awayId) + " " + sideLine(-b.line);
+    if (b.market === "prop") return (typeof b.playerName === "string" && b.playerName ? b.playerName : "?") + " " + (b.pick === "over" ? "Over " : "Under ") + b.line + " " + (own(statsOf(b), b.stat) ? statsOf(b)[b.stat].short : "");
     return (b.pick === "over" ? "Over " : "Under ") + b.line;
   }
 
   function propValue(b) {
-    if (!PL || !own(STATS, b.stat) || (PL.done || []).indexOf(b.gameId) < 0) return undefined;
-    var pl = own(PL.players, b.playerId), row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
-    return row ? row[STATS[b.stat].i] : null; // null = n'a pas joué
+    var P = LGM[lgOf(b)].pl, S = statsOf(b);
+    if (!P || !own(S, b.stat) || (P.done || []).indexOf(b.gameId) < 0) return undefined;
+    var pl = own(P.players, b.playerId), row = pl && pl.g.filter(function (r) { return r[0] === b.gameId; })[0];
+    return row ? row[S[b.stat].i] : null; // null = n'a pas joué
   }
   function betResult(b) {
-    var g = gameById[b.gameId];
+    var g = own(LGM[lgOf(b)].games, b.gameId);
     if (!g) return null;
     if (b.market === "prop") {
       var pv = propValue(b);
@@ -1069,13 +1119,13 @@
     return { v: d, txt: (d > 0 ? "+" : "") + d + " pt" };
   }
 
-  var whoFilter = "Tous";
+  var whoFilter = "Tous", lgFilter = "all";
   var shortDate = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short" });
 
   function betsHtml() {
     var whos = ["Tous"].concat(bets.map(function (b) { return b.who; }).filter(function (w, i, a) { return w && a.indexOf(w) === i; }));
     if (whos.indexOf(whoFilter) < 0) whoFilter = "Tous";
-    var list = bets.filter(function (b) { return whoFilter === "Tous" || b.who === whoFilter; })
+    var list = bets.filter(function (b) { return (whoFilter === "Tous" || b.who === whoFilter) && (lgFilter === "all" || lgOf(b) === lgFilter); })
       .slice().sort(function (x, y) { return new Date(y.date) - new Date(x.date); });
     var w = 0, l = 0, pu = 0, staked = 0, profit = 0, pend = 0, clvSum = 0, clvN = 0;
     list.forEach(function (b) {
@@ -1090,6 +1140,9 @@
     var head = "<h2>Nos paris</h2>" + '<div class="msum" id="syncBox">' + syncHtml() + "</div>" +
       '<div class="basis">Parieur : ' + whos.map(function (x) {
         return '<button type="button" data-who="' + esc(x) + '"' + (x === whoFilter ? ' class="on"' : "") + ">" + esc(x) + "</button>";
+      }).join("") + "</div>" +
+      '<div class="basis">Ligue : ' + [["all", "Toutes"], ["nba", ICON.nba + " NBA"], ["nhl", ICON.nhl + " NHL"]].map(function (x) {
+        return '<button type="button" data-lgf="' + x[0] + '"' + (x[0] === lgFilter ? ' class="on"' : "") + ">" + x[1] + "</button>";
       }).join("") + "</div>" +
       '<div class="kpis">' +
         kpi("Fiche" + tip("fiche"),w + "-" + l + (pu ? "-" + pu : "")) +
@@ -1106,14 +1159,14 @@
     } else {
       table = '<div class="scroll"><table><thead><tr><th>Date</th><th>Match</th><th>Pari</th><th>Parieur</th><th>Cote' + tip("cote") + '</th><th>Mise</th><th>Modèle' + tip("modele") + '</th><th>Résultat</th><th>Profit</th><th>CLV' + tip("clv") + '</th><th></th></tr></thead><tbody>' +
         list.map(function (b) {
-          var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
+          var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = own(LGM[lgOf(b)].games, b.gameId);
           var detail = g ? g.awayScore + "-" + g.homeScore : "";
-          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + own(STATS, b.stat).short; }
+          if (b.market === "prop" && r) { var pv = propValue(b); detail = pv === null ? "n'a pas joué" : pv + " " + own(statsOf(b), b.stat).short; }
           var res = r ? '<span class="res-' + r + '">' + { W: "Gagné", L: "Perdu", P: "Nul" }[r] + "</span>" + (detail ? ' <small class="sub">' + esc(detail) + "</small>" : "")
                       : '<span class="res-pending">En attente</span>';
           return "<tr>" +
             "<td>" + esc(shortDate.format(new Date(b.date))) + "</td>" +
-            "<td>" + esc(abbr(b.awayId)) + " @ " + esc(abbr(b.homeId)) + "</td>" +
+            "<td>" + lgIcon(lgOf(b)) + esc(teamAbbr(b, b.awayId)) + " @ " + esc(teamAbbr(b, b.homeId)) + "</td>" +
             "<td><b>" + esc(betLabel(b)) + "</b></td>" +
             "<td>" + esc(b.who || "") + "</td>" +
             '<td class="num">' + b.odds.toFixed(2) + "</td>" +
@@ -1150,8 +1203,8 @@
     try { localStorage.setItem(PL_KEY, JSON.stringify(plLines)); } catch (e) {}
   })();
   function plKey(gid, pid, st) { return gid + ":" + pid + ":" + st; }
-  var plGame = null, plStat = "pts", plInfo = {}, plVsN = 5;
-  var HBOX = window.NBA_H2H_BOX && window.NBA_H2H_BOX.games ? window.NBA_H2H_BOX.games : {};
+  var plGame = null, plStat = NHL ? "points" : "pts", plInfo = {}, plVsN = 5;
+  var HBOX = !NHL && window.NBA_H2H_BOX && window.NBA_H2H_BOX.games ? window.NBA_H2H_BOX.games : {};
   // Valeurs de la stat du joueur dans ses derniers matchs contre cet adversaire (saison en cours + saisons passées).
   function vsOpp(pid, p, oppId) {
     var st = STATS[plStat], out = [];
@@ -1175,7 +1228,7 @@
       var p = PL.players[pid];
       if (p.t !== teamId || p.g.length < 3) return;
       var mins = p.g.map(function (r) { return r[5]; });
-      if (avg(mins) < 12) return;
+      if (avg(mins) < MIN_MINUTES) return;
       var vals = p.g.map(function (r) { return r[st.i]; });
       var season = avg(vals), last5 = avg(vals.slice(-5)), min5 = avg(mins.slice(-5));
       var sd = Math.sqrt(avg(vals.map(function (v) { return (v - season) * (v - season); })) * vals.length / Math.max(1, vals.length - 1));
@@ -1224,7 +1277,7 @@
     var body = [[g.awayId, g.homeId], [g.homeId, g.awayId]].map(function (pair) {
       var rows = plRows(g, pair[0], pair[1]);
       if (!rows.length) return "<h2>" + esc(abbr(pair[0])) + "</h2><div class=\"empty\">Pas assez de matchs joués.</div>";
-      var oppTxt = STATS[plStat].opp ? " · défense " + esc(abbr(pair[1])) + " : " + (rows[0].oppF >= 1 ? "+" : "") + ((rows[0].oppF - 1) * 100).toFixed(1) + " % de points accordés vs la ligue" : "";
+      var oppTxt = STATS[plStat].opp ? " · défense " + esc(abbr(pair[1])) + " : " + (rows[0].oppF >= 1 ? "+" : "") + ((rows[0].oppF - 1) * 100).toFixed(1) + " % de " + (NHL ? "buts" : "points") + " accordés vs la ligue" : "";
       return "<h2>" + esc(teams[pair[0]].info.name) + '<span class="sub">' + oppTxt + "</span></h2>" +
         '<div class="scroll"><table class="pl"><thead><tr><th>Joueur</th><th>Min (5)</th><th>Saison</th><th>5 dern.</th><th>vs ' + esc(abbr(pair[1])) + '</th><th>Proj.</th><th>Ligne</th><th>Cote O</th><th>Cote U</th><th>10 dern.</th><th>vs ' + esc(abbr(pair[1])) + '</th><th>Over</th><th>Valeur</th></tr></thead><tbody>' +
         rows.map(function (r) {
@@ -1319,6 +1372,19 @@
     });
   })();
 
+  (function () {
+    var sw = document.getElementById("lgsw");
+    if (!sw || !sw.querySelectorAll) return;
+    sw.querySelectorAll("button[data-lg]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lg") === LG); });
+    if (sw.addEventListener) sw.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("button[data-lg]") : null;
+      if (!b || b.getAttribute("data-lg") === LG) return;
+      if (b.getAttribute("data-lg") === "nhl" && !(SRC.nhl.data && SRC.nhl.data.teams)) { toast("Données NHL pas encore disponibles."); return; }
+      try { localStorage.setItem(LEAGUE_KEY, b.getAttribute("data-lg")); } catch (err) {}
+      location.reload();
+    });
+  })();
+
   function $(id) { return document.getElementById(id); }
   function suggestedStake(p, dec) {
     if (!(bankroll > 0) || !p || !(dec > 1)) return 0;
@@ -1356,14 +1422,14 @@
         });
       } else if (m === "spread") {
         opts = [["away", a + " " + (typeof o.spread === "number" ? sgn(-o.spread) : "")], ["home", h + " " + (typeof o.spread === "number" ? sgn(o.spread) : "")]];
-        odds = { home: STD_DEC, away: STD_DEC };
+        odds = NHL ? { home: NaN, away: NaN } : { home: STD_DEC, away: STD_DEC };
         line = typeof o.spread === "number" ? (pick === "home" ? o.spread : -o.spread) : "";
       } else {
         opts = [["over", "Over"], ["under", "Under"]];
         odds = { over: STD_DEC, under: STD_DEC };
         line = typeof o.total === "number" ? o.total : "";
       }
-      $("bmTitle").textContent = a + " @ " + h + " · " + { ml: "Gagnant du match", spread: "Écart", total: "Total de points" }[m];
+      $("bmTitle").textContent = a + " @ " + h + " · " + { ml: "Gagnant du match", spread: NHL ? "Puck line" : "Écart", total: NHL ? "Total de buts" : "Total de points" }[m];
     }
     draft.odds = odds;
     $("bmSeg").innerHTML = opts.map(function (x) { return '<button type="button" data-pick="' + x[0] + '">' + esc(x[1]) + "</button>"; }).join("");
@@ -1423,7 +1489,8 @@
     var sum = "";
     if (p) sum += "Notre chance : <b>" + pct(p) + "</b>" + (dec > 1 ? " · notre cote " + (1 / p).toFixed(2) + " · " + verdict(p, dec) : "");
     else sum += draft.line0 != null && draft.p != null ? "Ligne modifiée : pas de probabilité du modèle pour cette ligne." : "Pas de probabilité du modèle pour ce pari.";
-    if (draft.market !== "ml" && draft.market !== "prop") sum += '<br><span class="sub">Cote -110 (1.91) par défaut : remplace-la par celle du book.</span>';
+    if (NHL && draft.market === "spread") sum += '<br><span class="sub">Puck line : entre la cote du book (rarement -110).</span>';
+    else if (draft.market !== "ml" && draft.market !== "prop") sum += '<br><span class="sub">Cote -110 (1.91) par défaut : remplace-la par celle du book.</span>';
     $("bmSum").innerHTML = sum;
     $("bmGain").innerHTML = dec > 1 && stake > 0
       ? "Si ça passe : <b>+" + (stake * (dec - 1)).toFixed(2) + " $</b> <span class=\"sub\">(retour " + (stake * dec).toFixed(2) + " $)</span>"
@@ -1478,7 +1545,7 @@
     if (!(stake > 0)) { $("bmStake").focus(); return; }
     if (!who) { $("bmWho").focus(); return; }
     var b = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), gameId: draft.gameId, date: draft.date, homeId: draft.homeId, awayId: draft.awayId,
-      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: curP(), createdAt: new Date().toISOString() };
+      market: draft.market, pick: pick, odds: odds, stake: stake, who: who, p: curP(), createdAt: new Date().toISOString(), league: LG };
     if (draft.market === "prop") { b.playerId = draft.playerId; b.playerName = draft.playerName; b.stat = draft.stat; }
     if (b.market !== "ml") {
       var lv = parseFloat($("bmLine").value);
@@ -1537,6 +1604,8 @@
     if (ab) { openBet(ab); return; }
     var wb = t.closest("button[data-who]");
     if (wb) { whoFilter = wb.getAttribute("data-who"); renderBets(); return; }
+    var lf = t.closest("button[data-lgf]");
+    if (lf) { lgFilter = lf.getAttribute("data-lgf"); renderBets(); return; }
     var del = t.closest("button[data-del]");
     if (del) {
       var did = del.getAttribute("data-del");
@@ -1559,7 +1628,7 @@
       var have = dict(); bets.forEach(function (b) { have[b.id] = true; });
       var added = 0;
       arr.forEach(function (b) {
-        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.market !== "prop" || (typeof b.playerId === "string" && !!own(STATS, b.stat)))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
+        if (b && typeof b.id === "string" && !have[b.id] && b.gameId && ["ml", "spread", "total", "prop"].indexOf(b.market) >= 0 && Number.isFinite(b.odds) && b.odds > 1 && Number.isFinite(b.stake) && b.stake > 0 && typeof b.who === "string" && Number.isFinite(Date.parse(b.date)) && (b.market === "total" || b.market === "prop" ? ["over", "under"] : ["home", "away"]).indexOf(b.pick) >= 0 && (b.market === "ml" || Number.isFinite(b.line)) && (b.league == null || b.league === "nba" || b.league === "nhl") && (b.market !== "prop" || (typeof b.playerId === "string" && !!own(statsOf(b), b.stat)))) { bets.push(b); have[b.id] = true; pendAdd.push(b.id); added++; }
       });
       saveBets(); savePend(); renderBets(); if (added) sync();
       document.getElementById("betMsg").textContent = added + " pari(s) ajouté(s).";
@@ -1612,7 +1681,7 @@
   // Accès pour les tests automatisés (test/page-harness.mjs) ; sans effet dans le navigateur.
   if (typeof window.__PS_TEST__ === "function") window.__PS_TEST__({
     normCdf: normCdf, americanToDecimal: americanToDecimal, project: project, withMarket: withMarket,
-    verdict: verdict, isHot: isHot, topCandidates: topCandidates, showView: showView, betResult: betResult, betProfit: betProfit, betClv: betClv, betLabel: betLabel,
+    verdict: verdict, isHot: isHot, topCandidates: topCandidates, league: function () { return LG; }, stats: function () { return STATS; }, betsHtml: betsHtml, showView: showView, betResult: betResult, betProfit: betProfit, betClv: betClv, betLabel: betLabel,
     teams: teams, leagueAvg: function () { return leagueAvg; }, sync: sync,
     state: function () { return { bets: bets, pendAdd: pendAdd, pendDel: pendDel, sync: SYNC }; }
   });

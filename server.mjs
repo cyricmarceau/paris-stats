@@ -16,6 +16,8 @@ const ORIGIN = process.env.ALLOW_ORIGIN || 'https://paris-stats.onrender.com';
 const FILE = 'bets.json';
 const PORT = Number(process.env.PORT) || 10000;
 const MARKETS = ['ml', 'spread', 'total', 'prop'];
+// Stats de joueurs pariables par ligue. Pari sans « league » = NBA (tous ceux d'avant la NHL).
+const PROP_STATS = { nba: ['pts', 'reb', 'ast', 'tpm'], nhl: ['goals', 'assists', 'points', 'shots'] };
 
 async function gh(path, init = {}) {
   const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
@@ -66,14 +68,16 @@ function validBet(b) {
   const teamId = v => typeof v === 'string' && /^\d{1,10}$/.test(v); // identifiants ESPN numériques
   // id : doit pouvoir revenir intact dans l'adresse du DELETE (pas vide, pas « . » ni « .. », Unicode bien formé).
   const idOk = typeof b?.id === 'string' && b.id.length >= 1 && b.id.length <= 40 && b.id !== '.' && b.id !== '..' && b.id.isWellFormed();
+  const league = b?.league == null ? 'nba' : b.league;
   return b && idOk && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
+    Object.hasOwn(PROP_STATS, league) &&
     teamId(b.homeId) && teamId(b.awayId) &&
     // Champs facultatifs affichés par la page : bon type ou absents.
     (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&
     (b.playerName == null || (typeof b.playerName === 'string' && b.playerName.length <= 80)) &&
     (b.closeOdds == null || (Number.isFinite(b.closeOdds) && b.closeOdds > 1 && b.closeOdds < 1000)) &&
     (b.closeLine == null || Number.isFinite(b.closeLine)) &&
-    (b.market !== 'prop' || (typeof b.playerId === 'string' && /^\d{1,12}$/.test(b.playerId) && ['pts', 'reb', 'ast', 'tpm'].includes(b.stat))) &&
+    (b.market !== 'prop' || (typeof b.playerId === 'string' && /^\d{1,12}$/.test(b.playerId) && PROP_STATS[league].includes(b.stat))) &&
     Number.isFinite(b.odds) && b.odds > 1 && b.odds < 1000 && Number.isFinite(b.stake) && b.stake > 0 && b.stake < 1e6 &&
     typeof b.who === 'string' && b.who.length <= 40 && Number.isFinite(Date.parse(b.date)) &&
     (b.market === 'total' || b.market === 'prop' ? ['over', 'under'] : ['home', 'away']).includes(b.pick) &&

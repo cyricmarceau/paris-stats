@@ -31,4 +31,5 @@ Site de stats NBA et de suivi de paris pour Cyric et Will. Répondre en françai
 ## Modèle de paris (à connaître avant de toucher aux calculs)
 - Projection : moyennes pour/contre ramenées vers la moyenne de la ligue (`SHRINK_GAMES`), avantage du terrain 2,5 pts, écart-type 12 pts.
 - Quand le book donne une cote, probabilité, écart et total retenus = 30 % modèle + 70 % book sans marge (`MARKET_W`) : le modèle seul surestime les outsiders.
+- NHL (depuis la révision 28) : boutons 🏀/🏒 en haut, choix gardé dans `localStorage` (`paris-stats-ligue`), la page se recharge avec `nhl-data.js` / `nhl-players.js`. Modèle hockey neuf (écart-type 2,3 buts, avantage 0,2 but) à calibrer. Puck line ±1,5 jamais évaluée à -110 (cote réelle trop différente). Chaque pari porte `league` (`nba`/`nhl`) ; sans ce champ = NBA. Les id d'équipe ESPN se recoupent entre ligues : lire un pari avec les données de SA ligue (`LGM[lgOf(b)]`).
 - Valeur espérée = probabilité × cote décimale − 1. « Ça vaut le coup » au-delà de la marge de sécurité (10 % par défaut), « Suspect » au-delà de marge + 10 %.
