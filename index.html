@@ -122,6 +122,12 @@
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0 24px; }
   .kpi { padding: 19px 18px; background: var(--card); border: 1px solid #ffffff12; border-radius: 18px; }
   .kpi .l { color: var(--muted-foreground); font-size: 11px; }
+  button.tip.tip { display: inline-flex; flex: none; align-items: center; justify-content: center; box-sizing: border-box; width: 16px; min-width: 16px; height: 16px; min-height: 16px; margin: 0 0 0 4px; padding: 0; vertical-align: 1px; box-shadow: none;
+    border: 1px solid currentColor; border-radius: 50%; background: transparent; color: var(--muted-foreground); font: italic 700 10px/1 Georgia, serif; cursor: pointer; opacity: .8; }
+  label > button.tip.tip { margin-right: auto; }
+  button.tip.tip:hover, button.tip.tip.on { opacity: 1; color: var(--foreground); }
+  #tipBox { position: fixed; z-index: 1000; max-width: min(300px, calc(100vw - 24px)); padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+    background: #1b2638; color: var(--foreground); font-size: 13px; font-weight: 400; line-height: 1.45; letter-spacing: 0; box-shadow: 0 10px 30px #0008; }
   .kpi .v { margin-top: 8px; font-size: 25px; font-weight: 500; letter-spacing: -.04em; line-height: 1.2; }
   .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin: 20px 0 12px; }
   .tools textarea { width: 100%; min-height: 110px; padding: 12px; font: 12px/1.6 var(--font-mono); }
@@ -336,7 +342,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 23</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 24</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -384,6 +390,25 @@
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  }
+  // Petites icônes « i » qui expliquent un mot : on touche l'icône, une bulle s'ouvre (marche aussi sur iPhone).
+  var GLOSS = {
+    roi: "ROI (retour sur investissement) : profit ÷ total misé sur les paris réglés. +10 % = 10 $ gagnés pour 100 $ misés.",
+    clv: "CLV (closing line value) : ta cote comparée à la dernière cote du book avant le match. Positive = tu as eu un meilleur prix que la fermeture ; positive souvent = vrai talent, pas juste de la chance.",
+    fiche: "Fiche : victoires-défaites(-nulles) de nos paris réglés.",
+    mise: "Misé (réglés) : total d'argent misé sur les paris dont le match est terminé.",
+    attente: "En attente : paris dont le match n'est pas encore joué.",
+    cote: "Cote (décimale) : ce que le book te rend pour 1 $ misé, mise comprise. 2,50 = 10 $ misés rapportent 25 $ (15 $ de profit).",
+    notrecote: "Notre cote : le prix juste selon nous = 1 ÷ notre probabilité. Si le book offre plus haut, le pari a de la valeur.",
+    modele: "Modèle : la probabilité de gagner que notre modèle donnait au moment du pari.",
+    victoire: "Victoire : chance de gagner le match selon nous (mélange de notre modèle et du book sans sa marge).",
+    book: "Cote du book : la cote offerte par le site de paris (DraftKings par défaut). Tu peux la remplacer par celle de ton book.",
+    bankroll: "Bankroll : l'argent total que tu réserves aux paris. La mise suggérée en est un petit pourcentage.",
+    kelly: "Kelly : formule qui calcule la mise selon l'avantage. On en mise seulement ¼, max 3 % de la bankroll, pour limiter les mauvaises séries.",
+    ev: "Valeur espérée : ce que le pari rapporte en moyenne à long terme. Probabilité × cote − 1 ; +10 % = 10 $ de profit moyen par 100 $ misés."
+  };
+  function tip(k) {
+    return GLOSS[k] ? '<button type="button" class="tip" data-tip="' + k + '" aria-label="Explication">i</button>' : "";
   }
   function f1(x) { return x.toFixed(1); }
   function pct(x) { return (x * 100).toFixed(0) + " %"; }
@@ -567,10 +592,10 @@
       '<div class="name">' + logo + esc(t.info.name) + " <small>" + (isHome ? "dom." : "étr.") + " · " + t.all.w + "-" + t.all.l + "</small></div>" +
       '<div class="proj num">' + f1(pts) + "</div>" +
       '<div class="line">' +
-        "<span>Victoire <b class=\"num\">" + pct(p) + "</b>" +
+        "<span>Victoire" + tip("victoire") + " <b class=\"num\">" + pct(p) + "</b>" +
           (pBook != null ? ' <small class="num">(modèle ' + pct(pModel) + " · book " + pct(pBook) + ")</small>" : "") + "</span>" +
-        "<span>Notre cote <b class=\"num\">" + (1 / p).toFixed(2) + "</b></span>" +
-        '<label>Cote du book <input class="odds num" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="1.90" ' +
+        "<span>Notre cote" + tip("notrecote") + " <b class=\"num\">" + (1 / p).toFixed(2) + "</b></span>" +
+        '<label>Cote du book' + tip("book") + ' <input class="odds num" type="number" inputmode="decimal" step="0.01" min="1.01" placeholder="1.90" ' +
           'data-id="' + esc(id) + '" data-p="' + p + '" data-book="' + (bookDec || "") + '" data-prov="' + esc(provider) +
           '" value="' + esc(val) + '"></label>' +
         '<span class="src" data-src="' + esc(id) + '">' + sourceHtml(id, val, !!bookDec, provider) + "</span>" +
@@ -762,8 +787,8 @@
   function bankHtml() {
     return '<label class="bank sub">Marge de sécurité (%) <input class="odds num" id="marge" type="number" inputmode="decimal" min="0" max="50" step="1" value="' +
       Math.round(EV_GOOD * 100) + '"> <span>On dit « ça vaut le coup » seulement si la cote du book dépasse notre cote d\'au moins cette marge.</span></label>' +
-      '<label class="bank sub">Bankroll ($) <input class="odds num" id="bankroll" type="number" inputmode="decimal" min="0" step="10" placeholder="1000" value="' +
-      (bankroll || "") + '"> <span>Mise suggérée : ¼ Kelly, max 3 % de la bankroll, seulement sur « ça vaut le coup ».</span></label>';
+      '<label class="bank sub">Bankroll ($)' + tip("bankroll") + ' <input class="odds num" id="bankroll" type="number" inputmode="decimal" min="0" step="10" placeholder="1000" value="' +
+      (bankroll || "") + '"> <span>Mise suggérée : ¼ Kelly' + tip("kelly") + ', max 3 % de la bankroll, seulement sur « ça vaut le coup ».</span></label>';
   }
 
   app.innerHTML =
@@ -1000,19 +1025,19 @@
         return '<button type="button" data-who="' + esc(x) + '"' + (x === whoFilter ? ' class="on"' : "") + ">" + esc(x) + "</button>";
       }).join("") + "</div>" +
       '<div class="kpis">' +
-        kpi("Fiche", w + "-" + l + (pu ? "-" + pu : "")) +
+        kpi("Fiche" + tip("fiche"),w + "-" + l + (pu ? "-" + pu : "")) +
         kpi("% gagnés", (w + l ? (w / (w + l) * 100).toFixed(1) : "0") + " %") +
-        kpi("Misé (réglés)", staked.toFixed(0) + " $") +
+        kpi("Misé (réglés)" + tip("mise"),staked.toFixed(0) + " $") +
         kpi("Profit", (profit > 0 ? "+" : "") + profit.toFixed(2) + " $", profit > 0 ? "pos" : profit < 0 ? "neg" : "") +
-        kpi("ROI", (roi > 0 ? "+" : "") + (roi * 100).toFixed(1) + " %", roi > 0 ? "pos" : roi < 0 ? "neg" : "") +
-        kpi("CLV moyen (moneyline)", clvN ? ((clvSum / clvN > 0 ? "+" : "") + (clvSum / clvN * 100).toFixed(1) + " %") : "—", clvN ? (clvSum > 0 ? "pos" : "neg") : "") +
-        kpi("En attente", pend) +
+        kpi("ROI" + tip("roi"),(roi > 0 ? "+" : "") + (roi * 100).toFixed(1) + " %", roi > 0 ? "pos" : roi < 0 ? "neg" : "") +
+        kpi("CLV moyen (moneyline)" + tip("clv"),clvN ? ((clvSum / clvN > 0 ? "+" : "") + (clvSum / clvN * 100).toFixed(1) + " %") : "—", clvN ? (clvSum > 0 ? "pos" : "neg") : "") +
+        kpi("En attente" + tip("attente"),pend) +
       "</div>";
     var table;
     if (!list.length) {
       table = '<div class="empty">Aucun pari. Dans <b>Matchs</b>, clique « ＋ Parier » à côté d\'un choix pour l\'ajouter ici. Le résultat se calcule tout seul quand le match est terminé.</div>';
     } else {
-      table = '<div class="scroll"><table><thead><tr><th>Date</th><th>Match</th><th>Pari</th><th>Parieur</th><th>Cote</th><th>Mise</th><th>Modèle</th><th>Résultat</th><th>Profit</th><th>CLV</th><th></th></tr></thead><tbody>' +
+      table = '<div class="scroll"><table><thead><tr><th>Date</th><th>Match</th><th>Pari</th><th>Parieur</th><th>Cote' + tip("cote") + '</th><th>Mise</th><th>Modèle' + tip("modele") + '</th><th>Résultat</th><th>Profit</th><th>CLV' + tip("clv") + '</th><th></th></tr></thead><tbody>' +
         list.map(function (b) {
           var r = betResult(b), pr = betProfit(b, r), c = betClv(b), g = gameById[b.gameId];
           var detail = g ? g.awayScore + "-" + g.homeScore : "";
@@ -1494,6 +1519,25 @@
     if (i === sortCol) sortDir = -sortDir; else { sortCol = i; sortDir = cols[i].text ? 1 : -1; }
     document.getElementById("table").innerHTML = tableHtml();
   });
+
+  // Bulle des icônes « i » : toucher l'icône ouvre/ferme l'explication, toucher ailleurs la ferme.
+  var tipBox = null, tipOn = null;
+  function closeTip() { if (tipBox) tipBox.hidden = true; if (tipOn) tipOn.classList.remove("on"); tipOn = null; }
+  function openTip(btn) {
+    if (!tipBox) { tipBox = document.createElement("div"); tipBox.id = "tipBox"; tipBox.setAttribute("role", "tooltip"); document.body.appendChild(tipBox); }
+    tipBox.textContent = GLOSS[btn.getAttribute("data-tip")] || "";
+    tipBox.hidden = false; tipOn = btn; btn.classList.add("on");
+    var r = btn.getBoundingClientRect(), w = tipBox.offsetWidth, h = tipBox.offsetHeight;
+    var left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12));
+    var top = r.bottom + 8 + h > window.innerHeight - 8 ? r.top - h - 8 : r.bottom + 8;
+    tipBox.style.left = left + "px"; tipBox.style.top = Math.max(8, top) + "px";
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button.tip") : null;
+    if (b) { e.preventDefault(); e.stopPropagation(); if (tipOn === b) closeTip(); else openTip(b); return; }
+    if (tipOn && !(e.target.closest && e.target.closest("#tipBox"))) closeTip();
+  }, true);
+  if (window.addEventListener) window.addEventListener("scroll", closeTip, { passive: true });
 
   // Accès pour les tests automatisés (test/page-harness.mjs) ; sans effet dans le navigateur.
   if (typeof window.__PS_TEST__ === "function") window.__PS_TEST__({
