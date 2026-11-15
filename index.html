@@ -203,6 +203,7 @@
   #meta, #maj { color: var(--muted-foreground); }
   #maj b { color: var(--foreground); }
   .live { background: #15352b; border-color: #31624c; font-size: 11px; }
+  .me { cursor: pointer; background: transparent; font-family: inherit; color: var(--foreground); }
   .rev { display: inline-block; vertical-align: middle; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: 11px; font-weight: 600; letter-spacing: .01em; line-height: 1.2; font-variant-numeric: tabular-nums; }
   nav.menu { top: 12px; width: 100%; margin: 26px 0 28px; gap: 6px; padding: 6px; background: #131d2c; border-color: var(--border); border-radius: 16px; box-shadow: 0 8px 24px #0004; }
   nav.menu button { min-height: 46px; flex: 1; gap: 4px; color: var(--muted-foreground); font-size: 14px; border-radius: 10px; }
@@ -335,7 +336,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 21</span></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 22</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -1210,6 +1211,25 @@
   var modal = document.getElementById("betModal"), draft = null;
   var whoLast = "";
   try { whoLast = localStorage.getItem("paris-stats-who") || ""; } catch (e) {}
+  // Nom du parieur choisi une fois en haut de la page ; il préremplit « Qui parie ? ».
+  function setWho(n) {
+    n = String(n || "").trim().slice(0, 40);
+    if (!n) return;
+    whoLast = n; try { localStorage.setItem("paris-stats-who", n); } catch (err) {}
+    renderMe();
+  }
+  function renderMe() {
+    var me = document.getElementById("me");
+    if (me) me.textContent = whoLast ? "👤 " + whoLast : "👤 Choisir mon nom";
+  }
+  renderMe();
+  (function () {
+    var me = document.getElementById("me");
+    if (me && me.addEventListener) me.addEventListener("click", function () {
+      var n = window.prompt ? window.prompt("Ton nom de parieur :", whoLast) : null;
+      if (n != null) setWho(n);
+    });
+  })();
 
   function $(id) { return document.getElementById(id); }
   function suggestedStake(p, dec) {
@@ -1378,7 +1398,7 @@
       b.line = b.market === "spread" ? (pick === "home" ? lv : -lv) : lv;
     }
     bets.push(b); saveBets(); pendAdd.push(b.id); savePend(); sync();
-    whoLast = who; try { localStorage.setItem("paris-stats-who", who); } catch (err) {}
+    setWho(who);
     closeModal();
     renderBets();
     toast("✓ Pari ajouté : <b>" + esc(betLabel(b)) + "</b> · " + (stake % 1 ? stake.toFixed(2) : stake.toFixed(0)) + ' $ <button type="button" class="btn" data-goto="paris">Voir nos paris</button>');
