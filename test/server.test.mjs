@@ -49,14 +49,12 @@ test('revue 8 : DELETE decode une seule fois et garde le message exact sans chan
   }
 });
 
-test('revue 8 : authentification avant DELETE malforme, limites sans ecriture', async () => {
+test('revue 8 : DELETE malforme, limites sans ecriture', async () => {
   const s=await startServer();
   for (const [segment,status] of [['%E0%A4%A',400],['%00',200],['x'.repeat(41),404],['x'.repeat(201),404]]) {
     const path='/api/bets/'+segment;
     const before=s.github().puts;
-    assert.equal((await s.call(path,{method:'DELETE'})).status,401);
-    assert.equal(s.github().puts,before);
-    assert.equal((await s.call(path,{method:'DELETE',code:'secret'})).status,status);
+    assert.equal((await s.call(path,{method:'DELETE'})).status,status);
     if(status!==200) assert.equal(s.github().puts,before);
   }
 });
@@ -92,12 +90,14 @@ test('santé et liste vide ; la branche paris-data est créée', async () => {
   assert.ok(s.github().branches.includes('paris-data'));
 });
 
-test('ajout et suppression demandent le bon code', async () => {
-  const s = await startServer();
-  assert.equal((await s.call('/api/bets', { method: 'POST', body: { bet: validBet() } })).status, 401);
-  assert.equal((await s.call('/api/bets', { method: 'POST', code: 'mauvais', body: { bet: validBet() } })).status, 401);
-  assert.equal((await s.call('/api/bets/b1', { method: 'DELETE' })).status, 401);
-  assert.equal(s.github().puts, 0);
+// Plus de code d'équipe (demande de Cyric, 15 nov.) : tout le monde peut ajouter et supprimer.
+test('ajout et suppression sans code d’équipe', async () => {
+  const s = await startServer({ BETS_CODE: '' });
+  assert.equal((await s.call('/api/bets', { method: 'POST', body: { bet: validBet() } })).status, 200);
+  assert.equal((await s.call('/api/bets', { method: 'POST', code: 'ancien-code', body: { bet: validBet({ id: 'b2' }) } })).status, 200);
+  const r = await s.call('/api/bets/b1', { method: 'DELETE' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json.bets.map(b => b.id), ['b2']);
 });
 
 test('pari invalide refusé', async () => {
@@ -124,7 +124,7 @@ test('ajout, doublon ignoré, puis suppression', async () => {
 });
 
 test('serveur sans configuration : 503', async () => {
-  const s = await startServer({ GITHUB_TOKEN: '', BETS_CODE: '' });
+  const s = await startServer({ GITHUB_TOKEN: '' });
   assert.equal((await s.call('/api/bets')).status, 503);
 });
 
