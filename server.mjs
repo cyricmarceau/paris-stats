@@ -48,8 +48,10 @@ async function load(force = false) {
 async function update(change, message) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const cur = await load(attempt > 0);
-    const next = change(cur.bets.slice());
-    if (next === cur.bets) return cur.bets;
+    const copy = cur.bets.slice();
+    const next = change(copy);
+    // Rien n'a changé (doublon, suppression d'un id absent) : pas de commit GitHub.
+    if (next === copy || next === cur.bets) return cur.bets;
     const body = { message, branch: BRANCH, content: Buffer.from(JSON.stringify(next, null, 1)).toString('base64') };
     if (cur.sha) body.sha = cur.sha;
     const res = await gh(`/contents/${FILE}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -68,6 +70,8 @@ function validBet(b) {
     // Champs facultatifs affichés par la page : bon type ou absents.
     (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&
     (b.playerName == null || (typeof b.playerName === 'string' && b.playerName.length <= 80)) &&
+    (b.closeOdds == null || (Number.isFinite(b.closeOdds) && b.closeOdds > 1 && b.closeOdds < 1000)) &&
+    (b.closeLine == null || Number.isFinite(b.closeLine)) &&
     (b.market !== 'prop' || (typeof b.playerId === 'string' && /^\d{1,12}$/.test(b.playerId) && ['pts', 'reb', 'ast', 'tpm'].includes(b.stat))) &&
     Number.isFinite(b.odds) && b.odds > 1 && b.odds < 1000 && Number.isFinite(b.stake) && b.stake > 0 && b.stake < 1e6 &&
     typeof b.who === 'string' && b.who.length <= 40 && Number.isFinite(Date.parse(b.date)) &&
