@@ -66,6 +66,18 @@ const storageWith = bets => ({
   'paris-stats-code': 'secret'
 });
 
+// Plus de code d'équipe (15 nov.) : un appareil sans code envoie ses paris et n'affiche plus de case « code ».
+test('sans code d’équipe enregistré, les paris en attente partent quand même', async () => {
+  const api = fakeApi(), storage = storageWith([okBet]);
+  delete storage['paris-stats-code'];
+  const p = loadPage({ data: sampleData(), storage, fetch: api.fetch });
+  await flush();
+  assert.deepEqual(api.server.map(b => b.id), ['ok1']);
+  assert.deepEqual(p.state().pendAdd, []);
+  assert.equal(p.state().sync.state, 'ok');
+  assert.doesNotMatch(p.document.getElementById('view-paris').innerHTML, /code d'équipe|teamCode/i);
+});
+
 test('un pari refusé par le serveur reste sur l’appareil, les autres sont envoyés', async () => {
   const api = fakeApi();
   const p = loadPage({ data: sampleData(), storage: storageWith([okBet, longName]), fetch: api.fetch });
@@ -288,8 +300,8 @@ for (const status of [401,503,'network']) {
     await flush();
     assert.equal(calls.length,1);
     assert.deepEqual(p.state().pendDel,['bad','good']);
-    assert.equal(p.state().sync.state,status===401?'code':'off');
-    assert.equal(p.state().sync.msg,status===401 ? "Code d'\u00e9quipe invalide." : status===503 ? 'Serveur pas encore configur\u00e9.' : 'Serveur injoignable.');
+    assert.equal(p.state().sync.state,'off');
+    assert.equal(p.state().sync.msg,status===401 ? "Le serveur a refus\u00e9 l'acc\u00e8s." : status===503 ? 'Serveur pas encore configur\u00e9.' : 'Serveur injoignable.');
     failing=false;p.sync();await flush();
     assert.deepEqual(p.state().pendDel,[]);
     assert.equal(p.state().sync.state,'ok');
@@ -341,7 +353,7 @@ for (const failure of [401,'network']) {
     assert.equal(calls.length,1);
     assert.ok(calls[0].endsWith('/blocked'));
     assert.deepEqual(p.state().pendDel,['\ud800','blocked','later']);
-    assert.equal(p.state().sync.state,failure===401?'code':'off');
-    assert.equal(p.state().sync.msg,failure===401 ? "Code d'équipe invalide." : 'Serveur injoignable.');
+    assert.equal(p.state().sync.state,'off');
+    assert.equal(p.state().sync.msg,failure===401 ? "Le serveur a refusé l'accès." : 'Serveur injoignable.');
   });
 }
