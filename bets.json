@@ -89,21 +89,5 @@
   "p": 0.4257721513059902,
   "createdAt": "2026-11-12T04:30:21.134Z",
   "closeOdds": 2.6399999999999997
- },
- {
-  "id": "mwhcumgpkfszv",
-  "gameId": "401909987",
-  "date": "2026-11-15T21:30:00.000Z",
-  "homeId": "12",
-  "awayId": "30",
-  "market": "spread",
-  "pick": "home",
-  "odds": 1.91,
-  "stake": 1,
-  "who": "Will",
-  "p": 0.5513832499533162,
-  "createdAt": "2026-11-15T04:49:14.041Z",
-  "line": -1.5,
-  "closeLine": -1.5
  }
 ]
