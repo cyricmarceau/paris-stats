@@ -306,3 +306,9 @@ test('NHL : ligue et stats de joueurs hockey validées par ligue', async () => {
   assert.equal(await post(validBet({ id: 'n7', league: 'constructor' })), 400);
   assert.deepEqual(JSON.parse(s.github().file).map(b => b.id), ['n1', 'n2', 'n3']);
 });
+test('revue Codex 2 : ligue en tableau ou en objet refusée sans planter le lot', async () => {
+  const s = await startServer();
+  const r1 = await s.call('/api/bets', { method: 'POST', body: { bets: [validBet({ id: 'x1', league: ['nhl'] }), validBet({ id: 'x2', league: { toString: 'nhl' } }), validBet({ id: 'ok' })] } });
+  assert.equal(r1.status, 200);
+  assert.deepEqual(r1.json.bets.map(b => b.id), ['ok']);
+});

@@ -69,8 +69,9 @@ function validBet(b) {
   // id : doit pouvoir revenir intact dans l'adresse du DELETE (pas vide, pas « . » ni « .. », Unicode bien formé).
   const idOk = typeof b?.id === 'string' && b.id.length >= 1 && b.id.length <= 40 && b.id !== '.' && b.id !== '..' && b.id.isWellFormed();
   const league = b?.league == null ? 'nba' : b.league;
+  // Comparaison stricte : un tableau ["nhl"] ou un objet ne doit jamais servir de clé (conversion implicite, exception).
   return b && idOk && typeof b.gameId === 'string' && MARKETS.includes(b.market) &&
-    Object.hasOwn(PROP_STATS, league) &&
+    (league === 'nba' || league === 'nhl') &&
     teamId(b.homeId) && teamId(b.awayId) &&
     // Champs facultatifs affichés par la page : bon type ou absents.
     (b.p == null || (typeof b.p === 'number' && b.p >= 0 && b.p <= 1)) &&

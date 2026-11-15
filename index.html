@@ -536,7 +536,8 @@
       r.pHome = (1 - MARKET_W) * pr.pHome + MARKET_W * q;
       r.pAway = 1 - r.pHome;
     }
-    if (typeof o.spread === "number") r.margin = (1 - MARKET_W) * pr.margin + MARKET_W * -o.spread;
+    // NHL : la puck line est un handicap fixe ±1,5, pas l'écart attendu du marché : on ne la mélange pas.
+    if (typeof o.spread === "number" && !NHL) r.margin = (1 - MARKET_W) * pr.margin + MARKET_W * -o.spread;
     if (typeof o.total === "number") r.total = (1 - MARKET_W) * pr.total + MARKET_W * o.total;
     return r;
   }
@@ -555,7 +556,8 @@
   // Oublie les cotes saisies pour des matchs qui ne sont plus dans les données.
   (function () {
     var ids = {};
-    (data.upcoming || []).forEach(function (g) { ids[g.id] = true; });
+    // Les deux ligues partagent cette clé : on garde les matchs à venir de la NBA ET de la NHL.
+    ["nba", "nhl"].forEach(function (k) { ((SRC[k].data || {}).upcoming || []).forEach(function (g) { ids[g.id] = true; }); });
     Object.keys(saved).forEach(function (k) {
       var s = saved[k];
       if (!ids[k.split(":")[0]] || !s || typeof s !== "object") delete saved[k];
@@ -1199,7 +1201,8 @@
   var plLines = {};
   try { plLines = JSON.parse(localStorage.getItem(PL_KEY) || "{}") || {}; } catch (e) { plLines = {}; }
   (function () { // oublie les lignes des matchs passés
-    Object.keys(plLines).forEach(function (k) { if (!upcomingById[k.split(":")[0]]) delete plLines[k]; });
+    // Clé partagée par les deux ligues : on ne jette que les lignes des matchs qui ne sont plus à venir nulle part.
+    Object.keys(plLines).forEach(function (k) { var gid = k.split(":")[0]; if (!own(LGM.nba.up, gid) && !own(LGM.nhl.up, gid)) delete plLines[k]; });
     try { localStorage.setItem(PL_KEY, JSON.stringify(plLines)); } catch (e) {}
   })();
   function plKey(gid, pid, st) { return gid + ":" + pid + ":" + st; }

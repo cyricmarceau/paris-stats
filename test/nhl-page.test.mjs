@@ -80,3 +80,23 @@ test('Nos paris : icône de la ligue sur chaque pari et filtre par ligue', () =>
   assert.match(html, /🏒/);
   assert.match(html, /data-lgf="nhl"/);
 });
+
+test('revue Codex 1 : changer de ligue garde les cotes et lignes joueurs saisies pour l\'autre ligue', () => {
+  const cotes = JSON.stringify({ 'u1:home': { v: '2.10', t: 1 }, 'nu1:away': { v: '1.80', t: 1 }, 'vieux:home': { v: '3', t: 1 } });
+  const lignes = JSON.stringify({ 'u1:9:pts': { l: '20.5' }, 'nu1:77:goals': { l: '0.5' }, 'vieux:1:pts': { l: '3' } });
+  for (const ligue of ['nba', 'nhl']) {
+    const p = loadPage({ data: sampleData(), nhlData: nhlSample(), storage: { 'paris-stats-ligue': ligue, 'paris-stats-cotes': cotes, 'paris-stats-lignes-joueurs': lignes } });
+    assert.deepEqual(Object.keys(JSON.parse(p.localStorage.getItem('paris-stats-cotes'))).sort(), ['nu1:away', 'u1:home'], ligue);
+    assert.deepEqual(Object.keys(JSON.parse(p.localStorage.getItem('paris-stats-lignes-joueurs'))).sort(), ['nu1:77:goals', 'u1:9:pts'], ligue);
+  }
+});
+
+test('revue Codex 3 : la puck line ±1,5 ne déplace pas l\'écart projeté (ce n\'est pas l\'écart attendu du marché)', () => {
+  const p = loadPage({ data: sampleData(), nhlData: nhlSample(), storage: { 'paris-stats-ligue': 'nhl' } });
+  const pr = p.project(p.teams['2'], p.teams['1']);
+  assert.equal(p.withMarket(pr, { spread: -1.5 }).margin, pr.margin);
+  // NBA inchangée : l'écart du book reste mélangé.
+  const q = loadPage({ data: sampleData() });
+  const qr = q.project(q.teams['2'], q.teams['1']);
+  assert.notEqual(q.withMarket(qr, { spread: -7 }).margin, qr.margin);
+});
