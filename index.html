@@ -122,6 +122,13 @@
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0 24px; }
   .kpi { padding: 19px 18px; background: var(--card); border: 1px solid #ffffff12; border-radius: 18px; }
   .kpi .l { color: var(--muted-foreground); font-size: 11px; }
+  #view-top h3 { margin: 22px 0 6px; font-size: 16px; }
+  .toplist { display: grid; gap: 10px; }
+  .toprow { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 14px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+  .topwhat b { display: block; font-size: 16px; }
+  .topwhat small, .topnum { color: var(--muted-foreground); font-size: 12px; }
+  .toprow .topev { grid-column: 1; }
+  .toprow .addbet { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
   button.tip.tip { display: inline-flex; flex: none; align-items: center; justify-content: center; box-sizing: border-box; width: 16px; min-width: 16px; height: 16px; min-height: 16px; margin: 0 0 0 4px; padding: 0; vertical-align: 1px; box-shadow: none;
     border: 1px solid currentColor; border-radius: 50%; background: transparent; color: var(--muted-foreground); font: italic 700 10px/1 Georgia, serif; cursor: pointer; opacity: .8; }
   label > button.tip.tip { margin-right: auto; }
@@ -342,7 +349,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 24</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 25</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -686,6 +693,62 @@
     }).join("") + "</div>";
   }
 
+  // ---- Top paris : tous les paris possibles des matchs à venir, classés par valeur espérée ----
+  // Mêmes calculs que les cartes de match : gagnant (cote du book ou saisie), écart et total à -110.
+  function topCandidates() {
+    var now = Date.now(), out = [];
+    (data.upcoming || []).forEach(function (g) {
+      var h = teams[g.homeId], a = teams[g.awayId];
+      if (!h || !a || !(new Date(g.date).getTime() > now)) return;
+      var o = g.odds || {}, pr = withMarket(project(h, a), o);
+      var add = function (m, pick, label, p, dec) {
+        if (!(dec > 1) || !(p > 0)) return;
+        out.push({ g: g, h: h, a: a, market: m, pick: pick, label: label, p: p, dec: dec, ev: p * dec - 1 });
+      };
+      [["away", a, pr.pAway, o.awayMoneyline], ["home", h, pr.pHome, o.homeMoneyline]].forEach(function (s) {
+        var id = g.id + ":" + s[0];
+        var dec = saved[id] ? parseFloat(saved[id].v) : americanToDecimal(s[3]);
+        add("ml", s[0], s[1].info.abbr + " gagne", s[2], dec);
+      });
+      if (typeof o.spread === "number") {
+        var pH = normCdf((pr.margin + o.spread) / MARGIN_SD);
+        add("spread", "home", h.info.abbr + " " + sgn(o.spread), pH, STD_DEC);
+        add("spread", "away", a.info.abbr + " " + sgn(-o.spread), 1 - pH, STD_DEC);
+      }
+      if (typeof o.total === "number") {
+        var pO = 1 - normCdf((o.total - pr.total) / TOTAL_SD);
+        add("total", "over", "Over " + o.total, pO, STD_DEC);
+        add("total", "under", "Under " + o.total, 1 - pO, STD_DEC);
+      }
+    });
+    return out.filter(function (c) { return c.ev > 0; }).sort(function (x, y) { return y.ev - x.ev; });
+  }
+  function topHtml() {
+    var all = topCandidates();
+    var fmt = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    var row = function (c) {
+      return '<div class="toprow">' +
+        '<div class="topwhat"><b>' + esc(c.label) + "</b><small>" + esc(c.a.info.abbr) + " @ " + esc(c.h.info.abbr) + " · " + esc(fmt.format(new Date(c.g.date))) + "</small></div>" +
+        '<div class="topnum num">Chance ' + pct(c.p) + " · cote " + c.dec.toFixed(2) + (c.market === "ml" ? "" : " (-110)") + "</div>" +
+        '<div class="topev">' + verdict(c.p, c.dec) + "</div>" +
+        betBtn('data-g="' + esc(c.g.id) + '" data-m="' + c.market + '" data-pick="' + c.pick + '" data-p="' + c.p + '"', "", isHot(c.p, c.dec)) +
+        "</div>";
+    };
+    var sec = function (title, list, note) {
+      return list.length ? "<h3>" + title + ' <span class="sub">(' + list.length + ")</span></h3>" + (note ? '<p class="sub">' + note + "</p>" : "") + '<div class="toplist">' + list.map(row).join("") + "</div>" : "";
+    };
+    var good = all.filter(function (c) { return c.ev >= EV_GOOD && c.ev < EV_SUSPECT; });
+    var thin = all.filter(function (c) { return c.ev < EV_GOOD; });
+    var sus = all.filter(function (c) { return c.ev >= EV_SUSPECT; });
+    return "<h2>Top paris</h2>" +
+      '<p class="sub">Tous les paris des matchs à venir, du plus payant au moins payant selon la valeur espérée' + tip("ev") +
+      ". Seuls ceux à valeur positive sont listés. Les cotes saisies à la main dans « Matchs » sont prises en compte.</p>" +
+      (all.length ? "" : '<div class="empty">Aucun pari à valeur positive pour l\'instant.</div>') +
+      sec("Ça vaut le coup", good, "Valeur au-dessus de la marge de sécurité (" + Math.round(EV_GOOD * 100) + " %).") +
+      sec("Mince", thin, "Valeur positive mais sous la marge : avantage trop petit pour être sûr.") +
+      sec("Suspect", sus, "Valeur trop belle pour être vraie : vérifie blessures, repos et la cote avant de parier.");
+  }
+
   // ---- Tableau des équipes ----
   var cols = [
     { label: "Équipe", val: function (t) { return t.info.name; }, text: true },
@@ -794,6 +857,7 @@
   app.innerHTML =
     '<nav class="menu">' +
       '<button type="button" data-view="matchs">Matchs</button>' +
+      '<button type="button" data-view="top">Top paris</button>' +
       '<button type="button" data-view="joueurs">Joueurs</button>' +
       '<button type="button" data-view="paris">Nos paris<span class="count" id="betCount"></span></button>' +
       '<button type="button" data-view="equipes">Équipes</button>' +
@@ -804,6 +868,7 @@
     '<details class="settings"><summary>Réglages du modèle et bankroll</summary>' + bankHtml() + "</details>" +
     '<div id="upcoming">' + basisHtml() + upcomingHtml() + "</div>" +
     "</section>" +
+    '<section class="view" id="view-top"></section>' +
     '<section class="view" id="view-joueurs"></section>' +
     '<section class="view" id="view-paris"></section>' +
     '<section class="view" id="view-equipes">' +
@@ -1215,8 +1280,10 @@
   var view = "matchs";
   try { view = localStorage.getItem(VIEW_KEY) || "matchs"; } catch (e) {}
   function showView(v) {
-    view = ["matchs", "joueurs", "paris", "equipes"].indexOf(v) >= 0 ? v : "matchs";
-    ["matchs", "joueurs", "paris", "equipes"].forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
+    view = ["matchs", "top", "joueurs", "paris", "equipes"].indexOf(v) >= 0 ? v : "matchs";
+    // Recalculé à chaque ouverture : suit la base choisie, la marge et les cotes saisies dans « Matchs ».
+    if (view === "top") document.getElementById("view-top").innerHTML = topHtml();
+    ["matchs", "top", "joueurs", "paris", "equipes"].forEach(function (k) { document.getElementById("view-" + k).hidden = k !== view; });
     app.querySelectorAll("nav.menu button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-view") === view); });
     try { localStorage.setItem(VIEW_KEY, view); } catch (e) {}
   }
@@ -1542,7 +1609,7 @@
   // Accès pour les tests automatisés (test/page-harness.mjs) ; sans effet dans le navigateur.
   if (typeof window.__PS_TEST__ === "function") window.__PS_TEST__({
     normCdf: normCdf, americanToDecimal: americanToDecimal, project: project, withMarket: withMarket,
-    verdict: verdict, isHot: isHot, betResult: betResult, betProfit: betProfit, betClv: betClv, betLabel: betLabel,
+    verdict: verdict, isHot: isHot, topCandidates: topCandidates, showView: showView, betResult: betResult, betProfit: betProfit, betClv: betClv, betLabel: betLabel,
     teams: teams, leagueAvg: function () { return leagueAvg; }, sync: sync,
     state: function () { return { bets: bets, pendAdd: pendAdd, pendDel: pendDel, sync: SYNC }; }
   });
