@@ -336,7 +336,7 @@
 </head>
 <body>
 <!-- Révision du site : +1 à chaque PR qui modifie index.html (voir AGENTS.md). -->
-<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 22</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
+<h1>Paris stats NBA <span class="live" id="live"><i></i><span>En ligne</span></span> <span class="rev" id="rev" title="Numéro de version du site">révision 23</span> <button type="button" class="rev me" id="me" title="Ton nom de parieur, gardé sur ce téléphone">👤 Choisir mon nom</button></h1>
 <div class="sub" id="meta"></div>
 <div class="sub" id="maj"></div>
 
@@ -847,13 +847,11 @@
   function lsGet(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   var pendAdd = lsGet("paris-stats-pend-add", []), pendDel = lsGet("paris-stats-pend-del", []);
-  var teamCode = ""; try { teamCode = localStorage.getItem("paris-stats-code") || ""; } catch (e) {}
   function savePend() { lsSet("paris-stats-pend-add", pendAdd); lsSet("paris-stats-pend-del", pendDel); }
   function api(path, opts) {
     opts = opts || {};
     var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 75000);
     var headers = { "Content-Type": "application/json" };
-    if (teamCode) headers["X-Code"] = teamCode;
     return fetch(API + path, { method: opts.method || "GET", headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined, signal: ctl.signal })
       .then(function (r) { clearTimeout(t); return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) { var e = new Error(j.error || ("HTTP " + r.status)); e.status = r.status; throw e; } return j; }); },
             function (e) { clearTimeout(t); throw e; });
@@ -883,7 +881,6 @@
       }
       adopt(j.bets || []);
       if (!pendAdd.length && !pendDel.length) return j;
-      if (!teamCode) { var e = new Error("code"); e.status = 401; throw e; }
       var chain = Promise.resolve(j), refused = false;
       if (pendAdd.length) {
         var toSend = bets.filter(function (b) { return pendAdd.indexOf(b.id) >= 0; });
@@ -917,7 +914,7 @@
     }).then(function () {
       setSync("ok"); renderBets();
     }, function (e) {
-      if (e && e.status === 401) setSync("code", teamCode ? "Code d'équipe invalide." : "");
+      if (e && e.status === 401) setSync("off", "Le serveur a refusé l'accès.");
       else if (e && e.status === 503) setSync("off", "Serveur pas encore configuré.");
       else if (e && e.status === 400) setSync("off", e.userMsg || "Le serveur a refusé un pari (nom de plus de 40 caractères, cote ou mise hors limites).");
       else setSync("off", "Serveur injoignable.");
@@ -929,9 +926,6 @@
     var hm = SYNC.at ? SYNC.at.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" }) : "";
     if (SYNC.state === "busy") return "⏳ Synchronisation avec le serveur… <span class=\"sub\">(jusqu'à 1 min s'il était en veille)</span>";
     if (SYNC.state === "ok") return "☁️ Paris enregistrés sur le serveur · synchro à " + hm + ' <button type="button" class="btn" id="syncNow">Rafraîchir</button>';
-    if (SYNC.state === "code") return "🔒 " + (SYNC.msg ? esc(SYNC.msg) + " " : "") + "Entre le code d'équipe pour enregistrer les paris sur le serveur : " +
-      '<input id="teamCode" type="password" autocomplete="off" placeholder="Code" style="width:120px"> <button type="button" class="btn main" id="teamCodeOk">OK</button>' +
-      (n ? ' <span class="sub">(' + n + " changement(s) en attente)</span>" : "");
     if (SYNC.state === "off") return "⚠️ " + esc(SYNC.msg) + " Les paris restent sur cet appareil" + (n ? " (" + n + " changement(s) à envoyer)" : "") + '. <button type="button" class="btn" id="syncNow">Réessayer</button>';
     return "";
   }
@@ -1044,7 +1038,7 @@
       '<button type="button" class="btn" id="betImportOpen">Importer des paris</button><span class="sub" id="betMsg"></span></div>' +
       '<div class="tools" id="betImportBox" hidden><textarea id="betImportTxt" placeholder="Colle ici le texte copié par « Copier nos paris » sur l\'autre téléphone"></textarea>' +
       '<button type="button" class="btn main" id="betImport">Ajouter ces paris</button></div>' +
-      '<p class="sub">Les paris sont enregistrés sur le serveur et partagés entre tous ceux qui ont le code d\'équipe ; une copie reste dans ce navigateur si le serveur ne répond pas. « Copier / Importer » sert de sauvegarde. ' +
+      '<p class="sub">Les paris sont enregistrés sur le serveur et partagés entre tous ceux qui utilisent le site ; une copie reste dans ce navigateur si le serveur ne répond pas. « Copier / Importer » sert de sauvegarde. ' +
       "CLV = cote prise comparée à la dernière cote vue avant le match. Positif de façon régulière = le modèle trouve de la vraie valeur.</p>";
     return head + table + tools;
   }
@@ -1444,11 +1438,6 @@
     var nv = t.closest("nav.menu button[data-view]");
     if (nv) { showView(nv.getAttribute("data-view")); return; }
     if (t.closest("#syncNow")) { sync(); return; }
-    if (t.closest("#teamCodeOk")) {
-      var tc = document.getElementById("teamCode"); teamCode = (tc && tc.value || "").trim();
-      try { localStorage.setItem("paris-stats-code", teamCode); } catch (err) {}
-      sync(); return;
-    }
     var ab = t.closest("button.addbet");
     if (ab) { openBet(ab); return; }
     var wb = t.closest("button[data-who]");
