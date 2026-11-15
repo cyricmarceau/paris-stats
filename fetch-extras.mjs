@@ -39,10 +39,13 @@ const int = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0;
 export function parseRows(summary, game) {
   const blocks = summary?.boxscore?.players;
   if (!Array.isArray(blocks) || blocks.length !== 2) throw new Error(`Feuille de match incomplète pour ${game.id}`);
-  const out = [];
+  const out = [], seen = new Set();
   for (const block of blocks) {
     const teamId = String(block.team?.id);
     if (teamId !== game.homeId && teamId !== game.awayId) throw new Error(`Équipe inattendue ${teamId} dans ${game.id}`);
+    // Deux blocs de la même équipe = feuille incomplète (il manque l'adversaire).
+    if (seen.has(teamId)) throw new Error(`Feuille de match incomplète pour ${game.id} : équipe ${teamId} en double`);
+    seen.add(teamId);
     const st = block.statistics?.[0];
     const keys = st?.keys || [];
     const k = name => keys.indexOf(name);
@@ -52,10 +55,13 @@ export function parseRows(summary, game) {
     for (const a of st.athletes || []) {
       const s = a.stats;
       if (a.didNotPlay || !Array.isArray(s) || !s.length || !a.athlete?.id) continue;
-      const min = int(s[iMin]);
-      if (min <= 0) continue;
-      out.push({ id: String(a.athlete.id), n: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', teamId, min,
-        pts: int(s[iPts]), reb: int(s[iReb]), ast: int(s[iAst]), tpm: int(String(s[i3]).split('-')[0]) });
+      // Ligne coupée : on rejette la feuille (elle sera relue au prochain passage) plutôt que d'enregistrer des zéros.
+      if (s.length < keys.length) throw new Error(`Stats tronquées pour le joueur ${a.athlete.id} dans ${game.id}`);
+      const row = { id: String(a.athlete.id), n: a.athlete.displayName, pos: a.athlete.position?.abbreviation || '', teamId,
+        min: int(s[iMin]), pts: int(s[iPts]), reb: int(s[iReb]), ast: int(s[iAst]), tpm: int(String(s[i3]).split('-')[0]) };
+      // 0 minute affichée mais des stats (minutes arrondies à zéro) : on garde le joueur.
+      if (row.min <= 0 && !(row.pts || row.reb || row.ast || row.tpm)) continue;
+      out.push(row);
     }
   }
   if (out.length < 10) throw new Error(`Seulement ${out.length} joueurs lus dans ${game.id}`);

@@ -52,7 +52,8 @@ async function update(change, message) {
     const next = change(copy);
     // Rien n'a changé (doublon, suppression d'un id absent) : pas de commit GitHub.
     if (next === copy || next === cur.bets) return cur.bets;
-    const body = { message, branch: BRANCH, content: Buffer.from(JSON.stringify(next, null, 1)).toString('base64') };
+    // Message calculé après le changement : il ne cite que ce qui a vraiment été ajouté.
+    const body = { message: typeof message === 'function' ? message() : message, branch: BRANCH, content: Buffer.from(JSON.stringify(next, null, 1)).toString('base64') };
     if (cur.sha) body.sha = cur.sha;
     const res = await gh(`/contents/${FILE}`, { method: 'PUT', body: JSON.stringify(body) });
     if (res.ok) { cache = { bets: next, sha: (await res.json()).content.sha }; return next; }
@@ -109,12 +110,13 @@ createServer(async (req, res) => {
       const list = Array.isArray(body.bets) ? body.bets : [body.bet];
       const good = list.filter(validBet);
       if (!good.length) return send(res, 400, { error: 'Pari invalide.' });
+      let add = [];
       const bets = await update(cur => {
         const have = new Set(cur.map(b => b.id));
         // Un id accepté compte aussi pour le reste du lot : deux fois le même pari dans un envoi = un seul pari.
-        const add = good.filter(b => !have.has(b.id) && have.add(b.id));
+        add = good.filter(b => !have.has(b.id) && have.add(b.id));
         return add.length ? cur.concat(add) : cur;
-      }, `Pari ajouté (${good.map(b => b.who).join(', ')})`);
+      }, () => `Pari ajouté (${add.map(b => b.who).join(', ')})`);
       return send(res, 200, { bets });
     }
     // L'id est décodé (la page l'envoie avec encodeURIComponent) : tout id accepté au POST (≤ 40 caractères) est supprimable.

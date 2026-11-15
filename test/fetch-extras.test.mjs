@@ -11,7 +11,7 @@ const block = (teamId, start) => ({
 });
 const game = { id: 'g1', date: '2026-11-01T00:00:00Z', homeId: '1', awayId: '2' };
 
-test('backlog 22 : deux blocs de la meme equipe ne forment pas une feuille complete', {todo:'backlog 22'}, () => {
+test('backlog 22 : deux blocs de la meme equipe ne forment pas une feuille complete', () => {
   const s={boxscore:{players:[block('1',100),block('1',100)]}};
   const store={players:{}};
   assert.throws(()=>parseBox(s,game,store));
@@ -55,7 +55,7 @@ test('calendrier : seulement les matchs de saison régulière terminés', () => 
   assert.deepEqual([...into.values()], [['a', '2025-01-02', '1', '2', 110, 100]]);
 });
 
-test('backlog 19 : un joueur avec points et minutes arrondies a zero conserve ses stats', { todo: 'backlog 19' }, () => {
+test('backlog 19 : un joueur avec points et minutes arrondies a zero conserve ses stats', () => {
   const s = { boxscore: { players: [block('1', 100), block('2', 200)] } };
   s.boxscore.players[0].statistics[0].athletes.push(athlete('999', ['0', '2', '0', '0', '0-0']));
   const store = { players: {} };
@@ -64,7 +64,7 @@ test('backlog 19 : un joueur avec points et minutes arrondies a zero conserve se
   assert.equal(store.players['999'].g[0][6], 2);
 });
 
-test('backlog 20 : stats joueur tronquées ne doivent pas devenir des zéros définitifs', {todo:'backlog 20'}, () => {
+test('backlog 20 : stats joueur tronquées ne doivent pas devenir des zéros définitifs', () => {
   const s={boxscore:{players:[block('1',100),block('2',200)]}};
   s.boxscore.players[0].statistics[0].athletes[0].stats=['30'];
   const store={players:{}};

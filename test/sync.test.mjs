@@ -209,7 +209,7 @@ test('un 400 GET ne lance aucune mutation ; le réessai réinitialise syncing', 
   assert.match(p.document.getElementById('view-paris').innerHTML, /Paris enregistrés/);
 });
 
-test('ajout pendant POST : le nouveau pari doit partir avant d’annoncer le succès', {todo:'backlog 13'}, async () => {
+test('ajout pendant POST : le nouveau pari doit partir avant d’annoncer le succès', async () => {
   const api = fakeApi(); let release;
   const p = loadPage({data:sampleData(),storage:storageWith([okBet]),fetch(url,opts) {
     if (opts.method === 'POST' && !release) return new Promise(resolve => { release=()=>resolve(api.fetch(url,opts)); });
