@@ -1,5 +1,5 @@
 window.NBA_DATA = {
-  "generatedAt": "2026-11-16T01:02:28.789Z",
+  "generatedAt": "2026-11-16T03:09:28.959Z",
   "season": "2026-27",
   "source": "ESPN",
   "teams": [
@@ -1720,35 +1720,58 @@ window.NBA_DATA = {
       "awayId": "24",
       "homeScore": 102,
       "awayScore": 110
+    },
+    {
+      "id": "401909989",
+      "date": "2026-11-15T23:00:00.000Z",
+      "homeId": "2",
+      "awayId": "6",
+      "homeScore": 131,
+      "awayScore": 94
+    },
+    {
+      "id": "401909990",
+      "date": "2026-11-15T23:00:00.000Z",
+      "homeId": "28",
+      "awayId": "18",
+      "homeScore": 108,
+      "awayScore": 112
+    },
+    {
+      "id": "401909991",
+      "date": "2026-11-16T00:00:00.000Z",
+      "homeId": "27",
+      "awayId": "10",
+      "homeScore": 119,
+      "awayScore": 147
     }
   ],
   "upcoming": [
-    {
-      "id": "401909993",
-      "date": "2026-11-16T02:00:00.000Z",
-      "homeId": "23",
-      "awayId": "25",
-      "odds": {
-        "provider": "DraftKings",
-        "homeMoneyline": 361,
-        "awayMoneyline": -468,
-        "spread": 11.5,
-        "total": 223.5
-      }
-    },
     {
       "id": "401909994",
       "date": "2026-11-17T00:00:00.000Z",
       "homeId": "2",
       "awayId": "19",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -381,
+        "awayMoneyline": 302,
+        "spread": -9.5,
+        "total": 211.5
+      }
     },
     {
       "id": "401909995",
       "date": "2026-11-17T00:00:00.000Z",
       "homeId": "5",
       "awayId": "4",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -431,
+        "awayMoneyline": 337,
+        "spread": -10.5,
+        "total": 241.5
+      }
     },
     {
       "id": "401909996",
@@ -1762,14 +1785,26 @@ window.NBA_DATA = {
       "date": "2026-11-17T00:30:00.000Z",
       "homeId": "17",
       "awayId": "20",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 172,
+        "awayMoneyline": -207,
+        "spread": 5.5,
+        "total": 226.5
+      }
     },
     {
       "id": "401909998",
       "date": "2026-11-17T00:30:00.000Z",
       "homeId": "14",
       "awayId": "10",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 119,
+        "awayMoneyline": -141,
+        "spread": 2.5,
+        "total": 228.5
+      }
     },
     {
       "id": "401909999",
@@ -1778,9 +1813,9 @@ window.NBA_DATA = {
       "awayId": "22",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -143,
-        "awayMoneyline": 121,
-        "spread": -3.5,
+        "homeMoneyline": -132,
+        "awayMoneyline": 112,
+        "spread": -2.5,
         "total": 228.5
       }
     },
@@ -1789,7 +1824,13 @@ window.NBA_DATA = {
       "date": "2026-11-17T01:00:00.000Z",
       "homeId": "3",
       "awayId": "9",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 128,
+        "awayMoneyline": -152,
+        "spread": 2.5,
+        "total": 226.5
+      }
     },
     {
       "id": "401910001",
@@ -2090,6 +2131,13 @@ window.NBA_DATA = {
       "date": "2026-11-23T01:00:00.000Z",
       "homeId": "18",
       "awayId": "11",
+      "odds": null
+    },
+    {
+      "id": "401910035",
+      "date": "2026-11-23T01:30:00.000Z",
+      "homeId": "9",
+      "awayId": "2",
       "odds": null
     }
   ]
