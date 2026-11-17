@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-17T05:15:42.872Z",
+  "generatedAt": "2026-11-17T19:52:00.901Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -2853,6 +2853,14 @@ window.NHL_DATA = {
       "awayId": "10",
       "homeScore": 3,
       "awayScore": 1
+    },
+    {
+      "id": "401892727",
+      "date": "2026-11-17T02:30:00.000Z",
+      "homeId": "129764",
+      "awayId": "22",
+      "homeScore": 2,
+      "awayScore": 3
     }
   ],
   "upcoming": [
@@ -2863,10 +2871,10 @@ window.NHL_DATA = {
       "awayId": "8",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": -148,
-        "awayMoneyline": 124,
+        "homeMoneyline": -155,
+        "awayMoneyline": 130,
         "spread": -1.5,
-        "total": 5.5
+        "total": 6.5
       }
     },
     {
@@ -2876,8 +2884,8 @@ window.NHL_DATA = {
       "awayId": "6",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": -120,
-        "awayMoneyline": 100,
+        "homeMoneyline": -125,
+        "awayMoneyline": 105,
         "spread": -1.5,
         "total": 6.5
       }
@@ -2902,10 +2910,10 @@ window.NHL_DATA = {
       "awayId": "2",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": 105,
-        "awayMoneyline": -125,
+        "homeMoneyline": 110,
+        "awayMoneyline": -130,
         "spread": 1.5,
-        "total": 5.5
+        "total": 6.5
       }
     },
     {
@@ -2928,8 +2936,8 @@ window.NHL_DATA = {
       "awayId": "23",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": -170,
-        "awayMoneyline": 142,
+        "homeMoneyline": -162,
+        "awayMoneyline": 136,
         "spread": -1.5,
         "total": 6.5
       }
@@ -2941,8 +2949,8 @@ window.NHL_DATA = {
       "awayId": "21",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": 124,
-        "awayMoneyline": -148,
+        "homeMoneyline": 120,
+        "awayMoneyline": -142,
         "spread": 1.5,
         "total": 6.5
       }
@@ -2954,8 +2962,8 @@ window.NHL_DATA = {
       "awayId": "25",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": -142,
-        "awayMoneyline": 120,
+        "homeMoneyline": -135,
+        "awayMoneyline": 114,
         "spread": -1.5,
         "total": 6.5
       }
@@ -2993,10 +3001,10 @@ window.NHL_DATA = {
       "awayId": "3",
       "odds": {
         "provider": "Draft Kings",
-        "homeMoneyline": -125,
-        "awayMoneyline": 105,
+        "homeMoneyline": -130,
+        "awayMoneyline": 110,
         "spread": -1.5,
-        "total": 5.5
+        "total": 6.5
       }
     },
     {
@@ -3004,21 +3012,39 @@ window.NHL_DATA = {
       "date": "2026-11-19T00:30:00.000Z",
       "homeId": "5",
       "awayId": "1",
-      "odds": null
+      "odds": {
+        "provider": "Draft Kings",
+        "homeMoneyline": -122,
+        "awayMoneyline": 102,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892740",
       "date": "2026-11-19T00:30:00.000Z",
       "homeId": "11",
       "awayId": "10",
-      "odds": null
+      "odds": {
+        "provider": "Draft Kings",
+        "homeMoneyline": -162,
+        "awayMoneyline": 136,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892741",
       "date": "2026-11-19T03:00:00.000Z",
       "homeId": "129764",
       "awayId": "17",
-      "odds": null
+      "odds": {
+        "provider": "Draft Kings",
+        "homeMoneyline": -108,
+        "awayMoneyline": -112,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892742",
