@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-17T03:55:04.081Z",
+  "generatedAt": "2026-11-17T05:15:42.872Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -2862,7 +2862,7 @@ window.NHL_DATA = {
       "homeId": "1",
       "awayId": "8",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -148,
         "awayMoneyline": 124,
         "spread": -1.5,
@@ -2875,7 +2875,7 @@ window.NHL_DATA = {
       "homeId": "26",
       "awayId": "6",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -120,
         "awayMoneyline": 100,
         "spread": -1.5,
@@ -2888,7 +2888,7 @@ window.NHL_DATA = {
       "homeId": "12",
       "awayId": "29",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -142,
         "awayMoneyline": 120,
         "spread": -1.5,
@@ -2901,7 +2901,7 @@ window.NHL_DATA = {
       "homeId": "15",
       "awayId": "2",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": 105,
         "awayMoneyline": -125,
         "spread": 1.5,
@@ -2914,7 +2914,7 @@ window.NHL_DATA = {
       "homeId": "28",
       "awayId": "14",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": 110,
         "awayMoneyline": -130,
         "spread": 1.5,
@@ -2927,7 +2927,7 @@ window.NHL_DATA = {
       "homeId": "20",
       "awayId": "23",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -170,
         "awayMoneyline": 142,
         "spread": -1.5,
@@ -2940,7 +2940,7 @@ window.NHL_DATA = {
       "homeId": "4",
       "awayId": "21",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": 124,
         "awayMoneyline": -148,
         "spread": 1.5,
@@ -2953,7 +2953,7 @@ window.NHL_DATA = {
       "homeId": "19",
       "awayId": "25",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -142,
         "awayMoneyline": 120,
         "spread": -1.5,
@@ -2966,7 +2966,7 @@ window.NHL_DATA = {
       "homeId": "30",
       "awayId": "27",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -205,
         "awayMoneyline": 170,
         "spread": -1.5,
@@ -2979,7 +2979,7 @@ window.NHL_DATA = {
       "homeId": "37",
       "awayId": "9",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -135,
         "awayMoneyline": 114,
         "spread": -1.5,
@@ -2992,7 +2992,7 @@ window.NHL_DATA = {
       "homeId": "18",
       "awayId": "3",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -125,
         "awayMoneyline": 105,
         "spread": -1.5,

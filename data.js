@@ -1,5 +1,5 @@
 window.NBA_DATA = {
-  "generatedAt": "2026-11-17T03:54:22.932Z",
+  "generatedAt": "2026-11-17T05:15:21.026Z",
   "season": "2026-27",
   "source": "ESPN",
   "teams": [
@@ -1816,6 +1816,14 @@ window.NBA_DATA = {
       "awayId": "9",
       "homeScore": 115,
       "awayScore": 94
+    },
+    {
+      "id": "401910001",
+      "date": "2026-11-17T02:00:00.000Z",
+      "homeId": "7",
+      "awayId": "21",
+      "homeScore": 105,
+      "awayScore": 117
     }
   ],
   "upcoming": [
@@ -1825,10 +1833,10 @@ window.NBA_DATA = {
       "homeId": "28",
       "awayId": "18",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": 128,
         "awayMoneyline": -152,
-        "spread": 3.5,
+        "spread": 2.5,
         "total": 216.5
       }
     },
@@ -1837,7 +1845,13 @@ window.NBA_DATA = {
       "date": "2026-11-18T01:00:00.000Z",
       "homeId": "16",
       "awayId": "22",
-      "odds": null
+      "odds": {
+        "provider": "Draft Kings",
+        "homeMoneyline": -131,
+        "awayMoneyline": 111,
+        "spread": -2.5,
+        "total": 226.5
+      }
     },
     {
       "id": "401910004",
@@ -1845,11 +1859,11 @@ window.NBA_DATA = {
       "homeId": "24",
       "awayId": "8",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -345,
         "awayMoneyline": 277,
         "spread": -8.5,
-        "total": 220.5
+        "total": 221.5
       }
     },
     {
@@ -1858,11 +1872,11 @@ window.NBA_DATA = {
       "homeId": "12",
       "awayId": "26",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -219,
         "awayMoneyline": 182,
         "spread": -5.5,
-        "total": 223.5
+        "total": 225.5
       }
     },
     {
@@ -1871,7 +1885,7 @@ window.NBA_DATA = {
       "homeId": "13",
       "awayId": "30",
       "odds": {
-        "provider": "DraftKings",
+        "provider": "Draft Kings",
         "homeMoneyline": -316,
         "awayMoneyline": 255,
         "spread": -7.5,
