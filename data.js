@@ -1,5 +1,5 @@
 window.NBA_DATA = {
-  "generatedAt": "2026-11-19T04:31:17.349Z",
+  "generatedAt": "2026-11-19T19:29:17.139Z",
   "season": "2026-27",
   "source": "ESPN",
   "teams": [
@@ -1936,6 +1936,30 @@ window.NBA_DATA = {
       "awayId": "9",
       "homeScore": 116,
       "awayScore": 94
+    },
+    {
+      "id": "401910015",
+      "date": "2026-11-19T02:30:00.000Z",
+      "homeId": "7",
+      "awayId": "2",
+      "homeScore": 105,
+      "awayScore": 101
+    },
+    {
+      "id": "401910017",
+      "date": "2026-11-19T03:00:00.000Z",
+      "homeId": "13",
+      "awayId": "26",
+      "homeScore": 97,
+      "awayScore": 109
+    },
+    {
+      "id": "401910018",
+      "date": "2026-11-19T03:00:00.000Z",
+      "homeId": "23",
+      "awayId": "21",
+      "homeScore": 107,
+      "awayScore": 128
     }
   ],
   "upcoming": [
@@ -1944,14 +1968,26 @@ window.NBA_DATA = {
       "date": "2026-11-20T01:00:00.000Z",
       "homeId": "29",
       "awayId": "9",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -217,
+        "awayMoneyline": 180,
+        "spread": -5.5,
+        "total": 224.5
+      }
     },
     {
       "id": "401910020",
       "date": "2026-11-20T01:00:00.000Z",
       "homeId": "15",
       "awayId": "22",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 411,
+        "awayMoneyline": -546,
+        "spread": 11.5,
+        "total": 230.5
+      }
     },
     {
       "id": "401910021",
@@ -1960,10 +1996,10 @@ window.NBA_DATA = {
       "awayId": "18",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": 104,
-        "awayMoneyline": -123,
+        "homeMoneyline": -104,
+        "awayMoneyline": -113,
         "spread": 1.5,
-        "total": 217.5
+        "total": 216.5
       }
     },
     {
@@ -1973,10 +2009,10 @@ window.NBA_DATA = {
       "awayId": "12",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -1140,
-        "awayMoneyline": 720,
-        "spread": -16.5,
-        "total": 225.5
+        "homeMoneyline": -1040,
+        "awayMoneyline": 670,
+        "spread": -15.5,
+        "total": 224.5
       }
     },
     {
