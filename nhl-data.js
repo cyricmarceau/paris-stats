@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-20T04:20:38.023Z",
+  "generatedAt": "2026-11-20T19:06:52.950Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -3050,6 +3050,31 @@ window.NHL_DATA = {
       "awayId": "30",
       "homeScore": 1,
       "awayScore": 4
+    },
+    {
+      "id": "401892751",
+      "date": "2026-11-20T02:00:00.000Z",
+      "homeId": "17",
+      "awayId": "25",
+      "homeScore": 4,
+      "awayScore": 0
+    },
+    {
+      "id": "401892752",
+      "date": "2026-11-20T02:40:00.000Z",
+      "homeId": "124292",
+      "awayId": "22",
+      "homeScore": 5,
+      "awayScore": 1
+    },
+    {
+      "id": "401892753",
+      "date": "2026-11-20T03:00:00.000Z",
+      "homeId": "37",
+      "awayId": "9",
+      "homeScore": 3,
+      "awayScore": 4,
+      "ot": true
     }
   ],
   "upcoming": [
@@ -3058,98 +3083,182 @@ window.NHL_DATA = {
       "date": "2026-11-21T18:00:00.000Z",
       "homeId": "7",
       "awayId": "6",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -180,
+        "awayMoneyline": 150,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892755",
       "date": "2026-11-21T20:30:00.000Z",
       "homeId": "3",
       "awayId": "4",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -162,
+        "awayMoneyline": 136,
+        "spread": -1.5,
+        "total": 5.5
+      }
     },
     {
       "id": "401892756",
       "date": "2026-11-21T23:00:00.000Z",
       "homeId": "26",
       "awayId": "2",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -155,
+        "awayMoneyline": 130,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892757",
       "date": "2026-11-21T23:00:00.000Z",
       "homeId": "27",
       "awayId": "16",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -135,
+        "awayMoneyline": 114,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892758",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "1",
       "awayId": "23",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -120,
+        "awayMoneyline": 100,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892759",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "21",
       "awayId": "29",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -122,
+        "awayMoneyline": 102,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892760",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "10",
       "awayId": "15",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -166,
+        "awayMoneyline": 140,
+        "spread": -1.5,
+        "total": 5.5
+      }
     },
     {
       "id": "401892761",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "14",
       "awayId": "8",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -170,
+        "awayMoneyline": 142,
+        "spread": -1.5,
+        "total": 5.5
+      }
     },
     {
       "id": "401892762",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "5",
       "awayId": "12",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -108,
+        "awayMoneyline": -112,
+        "spread": 1.5,
+        "total": 5.5
+      }
     },
     {
       "id": "401892763",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "19",
       "awayId": "11",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 114,
+        "awayMoneyline": -135,
+        "spread": 1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892764",
       "date": "2026-11-22T00:00:00.000Z",
       "homeId": "28",
       "awayId": "37",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 114,
+        "awayMoneyline": -135,
+        "spread": 1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892765",
       "date": "2026-11-22T02:00:00.000Z",
       "homeId": "129764",
       "awayId": "25",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -162,
+        "awayMoneyline": 136,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892766",
       "date": "2026-11-22T03:00:00.000Z",
       "homeId": "22",
       "awayId": "30",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 230,
+        "awayMoneyline": -285,
+        "spread": 1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892767",
       "date": "2026-11-22T03:00:00.000Z",
       "homeId": "18",
       "awayId": "124292",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -118,
+        "awayMoneyline": -102,
+        "spread": -1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892768",
@@ -3338,6 +3447,34 @@ window.NHL_DATA = {
       "date": "2026-11-26T03:00:00.000Z",
       "homeId": "25",
       "awayId": "18",
+      "odds": null
+    },
+    {
+      "id": "401892795",
+      "date": "2026-11-27T18:00:00.000Z",
+      "homeId": "1",
+      "awayId": "21",
+      "odds": null
+    },
+    {
+      "id": "401892796",
+      "date": "2026-11-27T18:00:00.000Z",
+      "homeId": "11",
+      "awayId": "3",
+      "odds": null
+    },
+    {
+      "id": "401892797",
+      "date": "2026-11-27T18:00:00.000Z",
+      "homeId": "27",
+      "awayId": "129764",
+      "odds": null
+    },
+    {
+      "id": "401892798",
+      "date": "2026-11-27T19:00:00.000Z",
+      "homeId": "19",
+      "awayId": "9",
       "odds": null
     }
   ]
