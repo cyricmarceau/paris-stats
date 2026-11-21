@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-21T02:16:36.607Z",
+  "generatedAt": "2026-11-21T04:18:13.109Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -3124,8 +3124,8 @@ window.NHL_DATA = {
       "awayId": "16",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -142,
-        "awayMoneyline": 120,
+        "homeMoneyline": -135,
+        "awayMoneyline": 114,
         "spread": -1.5,
         "total": 6.5
       }
@@ -3189,8 +3189,8 @@ window.NHL_DATA = {
       "awayId": "12",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -108,
-        "awayMoneyline": -112,
+        "homeMoneyline": -102,
+        "awayMoneyline": -118,
         "spread": 1.5,
         "total": 5.5
       }
@@ -3241,8 +3241,8 @@ window.NHL_DATA = {
       "awayId": "30",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": 230,
-        "awayMoneyline": -285,
+        "homeMoneyline": 240,
+        "awayMoneyline": -298,
         "spread": 1.5,
         "total": 6.5
       }
