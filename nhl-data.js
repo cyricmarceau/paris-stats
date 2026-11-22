@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-22T01:20:21.740Z",
+  "generatedAt": "2026-11-22T03:30:22.350Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -3092,48 +3092,82 @@ window.NHL_DATA = {
       "homeScore": 3,
       "awayScore": 4,
       "ot": true
+    },
+    {
+      "id": "401892756",
+      "date": "2026-11-21T23:00:00.000Z",
+      "homeId": "26",
+      "awayId": "2",
+      "homeScore": 4,
+      "awayScore": 3
+    },
+    {
+      "id": "401892757",
+      "date": "2026-11-21T23:00:00.000Z",
+      "homeId": "27",
+      "awayId": "16",
+      "homeScore": 4,
+      "awayScore": 3
+    },
+    {
+      "id": "401892758",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "1",
+      "awayId": "23",
+      "homeScore": 7,
+      "awayScore": 5
+    },
+    {
+      "id": "401892759",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "21",
+      "awayId": "29",
+      "homeScore": 3,
+      "awayScore": 4
+    },
+    {
+      "id": "401892760",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "10",
+      "awayId": "15",
+      "homeScore": 3,
+      "awayScore": 4
+    },
+    {
+      "id": "401892761",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "14",
+      "awayId": "8",
+      "homeScore": 4,
+      "awayScore": 2
+    },
+    {
+      "id": "401892762",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "5",
+      "awayId": "12",
+      "homeScore": 2,
+      "awayScore": 3
+    },
+    {
+      "id": "401892763",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "19",
+      "awayId": "11",
+      "homeScore": 9,
+      "awayScore": 6
+    },
+    {
+      "id": "401892764",
+      "date": "2026-11-22T00:00:00.000Z",
+      "homeId": "28",
+      "awayId": "37",
+      "homeScore": 4,
+      "awayScore": 5,
+      "ot": true
     }
   ],
   "upcoming": [
-    {
-      "id": "401892765",
-      "date": "2026-11-22T02:00:00.000Z",
-      "homeId": "129764",
-      "awayId": "25",
-      "odds": {
-        "provider": "Draft Kings",
-        "homeMoneyline": -166,
-        "awayMoneyline": 140,
-        "spread": -1.5,
-        "total": 6.5
-      }
-    },
-    {
-      "id": "401892766",
-      "date": "2026-11-22T03:00:00.000Z",
-      "homeId": "22",
-      "awayId": "30",
-      "odds": {
-        "provider": "Draft Kings",
-        "homeMoneyline": 250,
-        "awayMoneyline": -310,
-        "spread": 1.5,
-        "total": 6.5
-      }
-    },
-    {
-      "id": "401892767",
-      "date": "2026-11-22T03:00:00.000Z",
-      "homeId": "18",
-      "awayId": "124292",
-      "odds": {
-        "provider": "Draft Kings",
-        "homeMoneyline": -118,
-        "awayMoneyline": -102,
-        "spread": -1.5,
-        "total": 6.5
-      }
-    },
     {
       "id": "401892768",
       "date": "2026-11-22T17:30:00.000Z",
@@ -3526,6 +3560,27 @@ window.NHL_DATA = {
       "date": "2026-11-29T01:00:00.000Z",
       "homeId": "9",
       "awayId": "129764",
+      "odds": null
+    },
+    {
+      "id": "401892820",
+      "date": "2026-11-29T02:00:00.000Z",
+      "homeId": "17",
+      "awayId": "18",
+      "odds": null
+    },
+    {
+      "id": "401892821",
+      "date": "2026-11-29T02:00:00.000Z",
+      "homeId": "8",
+      "awayId": "25",
+      "odds": null
+    },
+    {
+      "id": "401892822",
+      "date": "2026-11-29T03:00:00.000Z",
+      "homeId": "124292",
+      "awayId": "6",
       "odds": null
     }
   ]
