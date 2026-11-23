@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-23T04:00:57.653Z",
+  "generatedAt": "2026-11-23T22:39:30.210Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -3254,8 +3254,8 @@ window.NHL_DATA = {
       "awayId": "8",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -148,
-        "awayMoneyline": 124,
+        "homeMoneyline": -155,
+        "awayMoneyline": 130,
         "spread": -1.5,
         "total": 6.5
       }
@@ -3267,8 +3267,8 @@ window.NHL_DATA = {
       "awayId": "3",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -218,
-        "awayMoneyline": 180,
+        "homeMoneyline": -258,
+        "awayMoneyline": 210,
         "spread": -1.5,
         "total": 5.5
       }
@@ -3306,8 +3306,8 @@ window.NHL_DATA = {
       "awayId": "25",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": -115,
-        "awayMoneyline": -105,
+        "homeMoneyline": -118,
+        "awayMoneyline": -102,
         "spread": -1.5,
         "total": 6.5
       }
@@ -3319,8 +3319,8 @@ window.NHL_DATA = {
       "awayId": "30",
       "odds": {
         "provider": "DraftKings",
-        "homeMoneyline": 180,
-        "awayMoneyline": -218,
+        "homeMoneyline": 145,
+        "awayMoneyline": -175,
         "spread": 1.5,
         "total": 6.5
       }
@@ -3330,7 +3330,13 @@ window.NHL_DATA = {
       "date": "2026-11-25T01:00:00.000Z",
       "homeId": "6",
       "awayId": "37",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -102,
+        "awayMoneyline": -118,
+        "spread": 1.5,
+        "total": 6.5
+      }
     },
     {
       "id": "401892781",
@@ -3638,6 +3644,13 @@ window.NHL_DATA = {
       "date": "2026-11-29T22:00:00.000Z",
       "homeId": "1",
       "awayId": "22",
+      "odds": null
+    },
+    {
+      "id": "401892825",
+      "date": "2026-11-30T18:00:00.000Z",
+      "homeId": "27",
+      "awayId": "14",
       "odds": null
     }
   ]
