@@ -1,5 +1,5 @@
 window.NHL_DATA = {
-  "generatedAt": "2026-11-26T03:35:20.146Z",
+  "generatedAt": "2026-11-26T05:29:22.943Z",
   "season": "2026-27",
   "source": "ESPN",
   "league": "nhl",
@@ -3375,6 +3375,30 @@ window.NHL_DATA = {
       "date": "2026-11-26T01:00:00.000Z",
       "homeId": "9",
       "awayId": "27",
+      "homeScore": 1,
+      "awayScore": 3
+    },
+    {
+      "id": "401892791",
+      "date": "2026-11-26T01:00:00.000Z",
+      "homeId": "30",
+      "awayId": "129764",
+      "homeScore": 3,
+      "awayScore": 4
+    },
+    {
+      "id": "401892792",
+      "date": "2026-11-26T02:30:00.000Z",
+      "homeId": "17",
+      "awayId": "10",
+      "homeScore": 6,
+      "awayScore": 0
+    },
+    {
+      "id": "401892794",
+      "date": "2026-11-26T02:40:00.000Z",
+      "homeId": "124292",
+      "awayId": "4",
       "homeScore": 1,
       "awayScore": 3
     }

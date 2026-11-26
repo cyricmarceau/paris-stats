@@ -1,5 +1,5 @@
 window.NBA_DATA = {
-  "generatedAt": "2026-11-26T03:34:41.251Z",
+  "generatedAt": "2026-11-26T05:28:57.067Z",
   "season": "2026-27",
   "source": "ESPN",
   "teams": [
@@ -2320,6 +2320,22 @@ window.NBA_DATA = {
       "awayId": "17",
       "homeScore": 97,
       "awayScore": 104
+    },
+    {
+      "id": "401909323",
+      "date": "2026-11-26T01:30:00.000Z",
+      "homeId": "10",
+      "awayId": "21",
+      "homeScore": 116,
+      "awayScore": 104
+    },
+    {
+      "id": "401909324",
+      "date": "2026-11-26T03:00:00.000Z",
+      "homeId": "9",
+      "awayId": "23",
+      "homeScore": 129,
+      "awayScore": 110
     }
   ],
   "upcoming": [
@@ -2328,7 +2344,13 @@ window.NBA_DATA = {
       "date": "2026-11-28T00:00:00.000Z",
       "homeId": "18",
       "awayId": "14",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -169,
+        "awayMoneyline": 142,
+        "spread": -4.5,
+        "total": 224.5
+      }
     },
     {
       "id": "401909327",
@@ -2342,7 +2364,13 @@ window.NBA_DATA = {
       "date": "2026-11-28T00:30:00.000Z",
       "homeId": "11",
       "awayId": "20",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": 155,
+        "awayMoneyline": -185,
+        "spread": 4.5,
+        "total": 234.5
+      }
     },
     {
       "id": "401909329",
@@ -2356,7 +2384,13 @@ window.NBA_DATA = {
       "date": "2026-11-28T01:00:00.000Z",
       "homeId": "2",
       "awayId": "1",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -361,
+        "awayMoneyline": 288,
+        "spread": -9.5,
+        "total": 222.5
+      }
     },
     {
       "id": "401909331",
@@ -2377,7 +2411,13 @@ window.NBA_DATA = {
       "date": "2026-11-28T02:30:00.000Z",
       "homeId": "24",
       "awayId": "13",
-      "odds": null
+      "odds": {
+        "provider": "DraftKings",
+        "homeMoneyline": -196,
+        "awayMoneyline": 164,
+        "spread": -6.5,
+        "total": 226.5
+      }
     },
     {
       "id": "401909334",
